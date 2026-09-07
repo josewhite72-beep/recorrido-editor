@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Recorrido Editor (Checkpoint 1-3)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #f1f5f9; }
+
+/* Top Bar */
+.top-bar { height: 56px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 50; flex-shrink: 0; }
+.top-bar h1 { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
+.btn-group { display: flex; gap: 8px; }
+.btn { background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.btn:active { background: #e2e8f0; }
+.btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+.btn-danger { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+/* Canvas Area */
+#canvas-container { flex: 1; overflow: auto; position: relative; touch-action: pan-x pan-y; background-color: #f8fafc; background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px); background-size: 24px 24px; }
+#canvas-content { width: 2000px; height: 2000px; position: relative; }
+
+/* SVG Layer for Lines */
+#lines-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+
+/* Nodes */
+.node {
+  position: absolute; width: 130px; min-height: 80px; border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 0.9rem; text-align: center; padding: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: grab; z-index: 2;
+  border: 3px solid transparent; transition: border-color 0.2s, transform 0.1s;
+  touch-action: none; /* Critical for drag without scrolling */
+}
+.node:active { cursor: grabbing; }
+.node.selected { border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.3); }
+.node .icon { font-size: 1.8rem; margin-bottom: 4px; pointer-events: none; }
+.node .label { pointer-events: none; line-height: 1.2; }
+
+/* Floating Action Buttons */
+.fab-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 12px; z-index: 40; }
+.fab { width: 56px; height: 56px; border-radius: 50%; background: #2563eb; color: #fff; border: none; font-size: 1.5rem; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.fab:active { transform: scale(0.95); }
+.fab-connect { background: #0d9488; display: none; }
+.fab-connect.active { display: flex; animation: pulse 1.5s infinite; }
+
+/* Bottom Sheet */
+.bottom-sheet {
+  position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
+  border-radius: 20px 20px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+  transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 100; max-height: 70vh; display: flex; flex-direction: column;
+}
+.bottom-sheet.open { transform: translateY(0); }
+.sheet-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.sheet-header h2 { font-size: 1.1rem; color: #0f172a; }
+.sheet-content { padding: 20px; overflow-y: auto; flex: 1; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px;
+  font-size: 1rem; font-family: inherit; background: #f8fafc;
+}
+.form-group textarea { min-height: 80px; resize: vertical; }
+.sheet-actions { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; }
+.sheet-actions .btn { flex: 1; padding: 12px; font-size: 1rem; }
+
+/* Toast Notification */
+.toast {
+  position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px);
+  background: #0f172a; color: #fff; padding: 10px 20px; border-radius: 24px;
+  font-size: 0.9rem; font-weight: 600; opacity: 0; pointer-events: none;
+  transition: all 0.3s ease; z-index: 200; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4); } 70% { box-shadow: 0 0 0 12px rgba(13, 148, 136, 0); } 100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); } }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>🗺️ Recorrido Editor</h1>
+  <div class="btn-group">
+    <button class="btn" onclick="exportJSON()">⬇ Exportar</button>
+    <button class="btn" onclick="document.getElementById('fileInput').click()">⬆ Importar</button>
+    <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importJSON(this)">
+    <button class="btn btn-primary" onclick="alert('Fase 6: Aquí se lanzará el motor de juego con este grafo.')">▶ Jugar</button>
+  </div>
+</div>
+
+<div id="canvas-container">
+  <div id="canvas-content">
+    <svg id="lines-svg"></svg>
+    <div id="nodes-container"></div>
+  </div>
+</div>
+
+<div class="fab-container">
+  <button class="fab fab-connect" id="fabConnect" onclick="startConnectMode()">🔗</button>
+  <button class="fab" onclick="addNode()">＋</button>
+</div>
+
+<div class="bottom-sheet" id="bottomSheet">
+  <div class="sheet-header">
+    <h2>Editar Nodo</h2>
+    <button class="btn" onclick="closeSheet()">✕</button>
+  </div>
+  <div class="sheet-content">
+    <div class="form-group">
+      <label>Etiqueta (Label)</label>
+      <input type="text" id="editLabel" oninput="updateNodeData('label', this.value)">
+    </div>
+    <div class="form-group">
+      <label>Tipo de Actividad</label>
+      <select id="editType" onchange="updateNodeData('type', this.value)">
+        <option value="signpost">Signpost (Inicio/Texto)</option>
+        <option value="flashcards">Flashcards</option>
+        <option value="memory">Memory Game</option>
+        <option value="quiz">Quiz</option>
+        <option value="response">Response (Dibujo/Texto)</option>
+        <option value="reflect">Reflect (Pregunta abierta)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Signpost / Prompt</label>
+      <textarea id="editSignpost" oninput="updateNodeData('signpost', this.value)"></textarea>
+    </div>
+  </div>
+  <div class="sheet-actions">
+    <button class="btn btn-danger" onclick="deleteSelectedNode()">Eliminar Nodo</button>
+    <button class="btn btn-primary" onclick="closeSheet()">Guardar y Cerrar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// --- 1. STATE & DEFAULTS ---
+const STYLES = {
+  READY: { color: '#d97706', icon: '🚀' },
+  LEARN: { color: '#2563eb', icon: '📚' },
+  PRACTICE: { color: '#0d9488', icon: '🤝' },
+  PERFORM: { color: '#7c3aed', icon: '💪' },
+  SHOW: { color: '#db2777', icon: '⭐' },
+  THINK: { color: '#334155', icon: '💭' }
+};
+
+const DEFAULT_DATA = {
+  nodes: [
+    { id: 'n1', label: 'READY', type: 'signpost', x: 100, y: 100, width: 130, height: 80, color: '#d97706', icon: '🚀', signpost: '¡Bienvenido! Toca Start.' },
+    { id: 'n2', label: 'LEARN', type: 'flashcards', x: 300, y: 100, width: 130, height: 80, color: '#2563eb', icon: '📚', signpost: 'Escucha y repite.' }
+  ],
+  edges: [ { id: 'e1', from: 'n1', to: 'n2' } ]
+};
+
+let state = { nodes: [], edges: [], selectedNodeId: null, mode: 'default', connectingFrom: null };
+let isDragging = false, dragNodeId = null, dragOffsetX = 0, dragOffsetY = 0;
+let dragStartX = 0, dragStartY = 0;
+const DRAG_THRESHOLD = 10; // px de movimiento para considerar que es un arrastre
+
+// --- 2. INIT & PERSISTENCE ---
+function init() {
+  const saved = localStorage.getItem('recorrido_draft');
+  if (saved) {
+    try { state = JSON.parse(saved); } catch(e) { state = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+  } else {
+    state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+  }
+  render();
+}
+
+function saveState() {
+  localStorage.setItem('recorrido_draft', JSON.stringify(state));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// --- 3. RENDER ---
+function render() {
+  const nodesContainer = document.getElementById('nodes-container');
+  const svg = document.getElementById('lines-svg');
+  nodesContainer.innerHTML = '';
+  svg.innerHTML = '';
+
+  // Render Edges
+  state.edges.forEach(edge => {
+    const from = state.nodes.find(n => n.id === edge.from);
+    const to = state.nodes.find(n => n.id === edge.to);
+    if (!from || !to) return;
+
+    const x1 = from.x + from.width / 2;
+    const y1 = from.y + from.height / 2;
+    const x2 = to.x + to.width / 2;
+    const y2 = to.y + to.height / 2;
+
+    // Visible line
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('id', 'edgevis-' + edge.id);
+    path.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+    path.setAttribute('stroke', state.mode === 'connecting' && state.connectingFrom === edge.from ? '#0d9488' : '#64748b');
+    path.setAttribute('stroke-width', state.mode === 'connecting' && state.connectingFrom === edge.from ? '4' : '3');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('pointer-events', 'none');
+    svg.appendChild(path);
+
+    // Invisible hit-testing line (24px wide for easy mobile tap)
+    const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hitPath.setAttribute('id', 'edgehit-' + edge.id);
+    hitPath.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+    hitPath.setAttribute('stroke', 'transparent');
+    hitPath.setAttribute('stroke-width', '24');
+    hitPath.setAttribute('fill', 'none');
+    hitPath.setAttribute('pointer-events', 'stroke');
+    hitPath.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('¿Eliminar esta conexión?')) {
+        state.edges = state.edges.filter(ed => ed.id !== edge.id);
+        saveState(); render();
+      }
+    });
+    svg.appendChild(hitPath);
+  });
+
+  // Render Nodes
+  state.nodes.forEach(node => {
+    const el = document.createElement('div');
+    el.id = 'node-' + node.id;
+    el.className = `node ${state.selectedNodeId === node.id ? 'selected' : ''}`;
+    el.style.left = node.x + 'px';
+    el.style.top = node.y + 'px';
+    el.style.width = node.width + 'px';
+    el.style.minHeight = node.height + 'px';
+    el.style.background = node.color;
+    el.innerHTML = `<div class="icon">${node.icon}</div><div class="label">${node.label}</div>`;
+    
+    // Pointer events for drag and select
+    el.addEventListener('pointerdown', (e) => onNodePointerDown(e, node.id));
+    
+    nodesContainer.appendChild(el);
+  });
+
+  // Update UI buttons
+  document.getElementById('fabConnect').classList.toggle('active', state.mode === 'connecting');
+}
+
+// --- 3b. LIGHTWEIGHT UPDATES DURING DRAG (no destruyen el DOM, preservan pointer capture) ---
+function updateEdgePath(edgeId) {
+  const edge = state.edges.find(e => e.id === edgeId);
+  if (!edge) return;
+  const from = state.nodes.find(n => n.id === edge.from);
+  const to = state.nodes.find(n => n.id === edge.to);
+  if (!from || !to) return;
+  const x1 = from.x + from.width / 2, y1 = from.y + from.height / 2;
+  const x2 = to.x + to.width / 2, y2 = to.y + to.height / 2;
+  const d = `M ${x1} ${y1} L ${x2} ${y2}`;
+  const visible = document.getElementById('edgevis-' + edgeId);
+  const hit = document.getElementById('edgehit-' + edgeId);
+  if (visible) visible.setAttribute('d', d);
+  if (hit) hit.setAttribute('d', d);
+}
+
+function updateNodeVisualPosition(nodeId) {
+  const node = state.nodes.find(n => n.id === nodeId);
+  if (!node) return;
+  const el = document.getElementById('node-' + nodeId);
+  if (el) {
+    el.style.left = node.x + 'px';
+    el.style.top = node.y + 'px';
+  }
+  state.edges.forEach(edge => {
+    if (edge.from === nodeId || edge.to === nodeId) updateEdgePath(edge.id);
+  });
+}
+
+// --- 4. INTERACTION (DRAG & CONNECT) ---
+function onNodePointerDown(e, nodeId) {
+  if (state.mode === 'connecting') {
+    handleConnectTap(nodeId);
+    return;
+  }
+
+  e.preventDefault(); // Prevenir comportamientos por defecto del navegador
+  
+  // 1. Inicializar tracking, asumir que es un tap hasta que se demuestre lo contrario
+  dragNodeId = nodeId;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  isDragging = false;
+
+  // 2. Calcular offset usando currentTarget (el nodo .node) para evitar saltos si se toca un hijo (.icon/.label)
+  const rect = e.currentTarget.getBoundingClientRect();
+  dragOffsetX = e.clientX - rect.left;
+  dragOffsetY = e.clientY - rect.top;
+
+  // 3. Capturar el pointer para seguir el gesto aunque el dedo se salga del nodo
+  e.currentTarget.setPointerCapture(e.pointerId);
+  e.currentTarget.addEventListener('pointermove', onPointerMove);
+  e.currentTarget.addEventListener('pointerup', onPointerUp);
+  e.currentTarget.addEventListener('pointercancel', onPointerUp);
+}
+
+function onPointerMove(e) {
+  if (!dragNodeId) return;
+
+  // 1. Calcular distancia recorrida desde el pointerdown
+  const dx = e.clientX - dragStartX;
+  const dy = e.clientY - dragStartY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  // 2. Si supera el umbral, promocionar a "arrastre real"
+  if (!isDragging && distance > DRAG_THRESHOLD) {
+    isDragging = true;
+  }
+
+  // 3. Si ya es un arrastre, mover el nodo
+  if (isDragging) {
+    e.preventDefault(); // Prevenir scroll del canvas mientras se arrastra
+    
+    const canvasContent = document.getElementById('canvas-content');
+    const canvasRect = canvasContent.getBoundingClientRect();
+    // canvasRect ya viene en coordenadas de viewport incluyendo el scroll actual
+    // del contenedor (getBoundingClientRect siempre refleja el scroll vigente).
+    // Sumar container.scrollLeft/scrollTop aquí lo contaba DOS veces, lo que
+    // desplazaba el nodo lejos del dedo y sesgaba el movimiento hacia la derecha
+    // en cuanto había cualquier scroll de por medio.
+    const newX = (e.clientX - canvasRect.left) - dragOffsetX;
+    const newY = (e.clientY - canvasRect.top) - dragOffsetY;
+    
+    const node = state.nodes.find(n => n.id === dragNodeId);
+    node.x = Math.max(0, Math.round(newX / 10) * 10); // Snap a grilla de 10px
+    node.y = Math.max(0, Math.round(newY / 10) * 10);
+
+    // IMPORTANTE: nunca llamar a render() completo aquí — destruiría el nodo
+    // que tiene el pointer capture activo y cortaría el resto del gesto.
+    // Solo actualizamos su posición y las aristas conectadas, in-place.
+    updateNodeVisualPosition(dragNodeId);
+  }
+}
+
+function onPointerUp(e) {
+  if (!dragNodeId) return;
+
+  // 1. Decidir la acción final basada en si se cruzó el umbral
+  if (!isDragging) {
+    // Fue un TAP: seleccionar y abrir panel
+    state.selectedNodeId = dragNodeId;
+    openSheet(dragNodeId);
+    render(); // Actualizar borde de selección visual
+  } else {
+    // Fue un DRAG: solo guardar el estado
+    saveState();
+  }
+
+  // 2. Limpieza de estado y eventos
+  isDragging = false;
+  dragNodeId = null;
+  e.currentTarget.releasePointerCapture(e.pointerId);
+  e.currentTarget.removeEventListener('pointermove', onPointerMove);
+  e.currentTarget.removeEventListener('pointerup', onPointerUp);
+  e.currentTarget.removeEventListener('pointercancel', onPointerUp);
+}
+
+// --- 5. CONNECTION LOGIC ---
+function startConnectMode() {
+  if (!state.selectedNodeId) return;
+  state.mode = 'connecting';
+  state.connectingFrom = state.selectedNodeId;
+  closeSheet();
+  render();
+  showToast('Toca el nodo destino para conectar...');
+}
+
+function handleConnectTap(targetNodeId) {
+  if (state.connectingFrom === targetNodeId) {
+    showToast('No puedes conectar un nodo consigo mismo');
+    return;
+  }
+  
+  // Check if edge already exists
+  const exists = state.edges.some(edge => edge.from === state.connectingFrom && edge.to === targetNodeId);
+  if (exists) {
+    showToast('Esta conexión ya existe');
+  } else {
+    state.edges.push({ id: 'e' + Date.now(), from: state.connectingFrom, to: targetNodeId });
+    showToast('¡Conexión creada!');
+  }
+  
+  state.mode = 'default';
+  state.connectingFrom = null;
+  saveState();
+  render();
+}
+
+// --- 6. NODE MANAGEMENT & EDITING ---
+function addNode() {
+  const container = document.getElementById('canvas-container');
+  const x = container.scrollLeft + (container.clientWidth / 2) - 65;
+  const y = container.scrollTop + (container.clientHeight / 2) - 40;
+  
+  const keys = Object.keys(STYLES);
+  const randomKey = keys[Math.floor(Math.random() * keys.length)];
+  const style = STYLES[randomKey];
+  
+  const newNode = {
+    id: 'n' + Date.now(),
+    label: randomKey,
+    type: 'signpost',
+    x: Math.round(x / 10) * 10,
+    y: Math.round(y / 10) * 10,
+    width: 130, height: 80,
+    color: style.color,
+    icon: style.icon,
+    signpost: ''
+  };
+  
+  state.nodes.push(newNode);
+  state.selectedNodeId = newNode.id;
+  saveState();
+  render();
+  openSheet(newNode.id);
+}
+
+function deleteSelectedNode() {
+  if (!state.selectedNodeId) return;
+  if (!confirm('¿Eliminar este nodo y sus conexiones?')) return;
+  
+  state.nodes = state.nodes.filter(n => n.id !== state.selectedNodeId);
+  state.edges = state.edges.filter(e => e.from !== state.selectedNodeId && e.to !== state.selectedNodeId);
+  state.selectedNodeId = null;
+  closeSheet();
+  saveState();
+  render();
+}
+
+function openSheet(nodeId) {
+  const node = state.nodes.find(n => n.id === nodeId);
+  if (!node) return;
+  document.getElementById('editLabel').value = node.label;
+  document.getElementById('editType').value = node.type;
+  document.getElementById('editSignpost').value = node.signpost || '';
+  document.getElementById('bottomSheet').classList.add('open');
+}
+
+function closeSheet() {
+  document.getElementById('bottomSheet').classList.remove('open');
+  // Deselect if not in connecting mode
+  if (state.mode !== 'connecting') {
+    state.selectedNodeId = null;
+    render();
+  }
+}
+
+function updateNodeData(field, value) {
+  if (!state.selectedNodeId) return;
+  const node = state.nodes.find(n => n.id === state.selectedNodeId);
+  node[field] = value;
+  
+  // Auto-update icon/color if label matches a known stage
+  if (field === 'label' && STYLES[value.toUpperCase()]) {
+    node.color = STYLES[value.toUpperCase()].color;
+    node.icon = STYLES[value.toUpperCase()].icon;
+  }
+  
+  saveState();
+  render(); // Re-render to show label/icon changes immediately
+}
+
+// --- 7. IMPORT / EXPORT ---
+function exportJSON() {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+  const downloadAnchorNode = document.createElement('a');
+  downloadAnchorNode.setAttribute("href", dataStr);
+  downloadAnchorNode.setAttribute("download", "recorrido_mapa.json");
+  document.body.appendChild(downloadAnchorNode);
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
+  showToast('Mapa exportado');
+}
+
+function importJSON(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (imported.nodes && imported.edges) {
+        state = imported;
+        state.selectedNodeId = null;
+        state.mode = 'default';
+        saveState();
+        render();
+        showToast('Mapa importado correctamente');
+      } else {
+        alert('Formato JSON inválido: faltan nodes o edges');
+      }
+    } catch (err) {
+      alert('Error al leer el archivo JSON');
+    }
+  };
+  reader.readAsText(file);
+  input.value = ''; // Reset
+}
+
+// Tap on empty canvas to deselect
+document.getElementById('canvas-container').addEventListener('pointerdown', (e) => {
+  if (e.target.id === 'canvas-container' || e.target.id === 'canvas-content' || e.target.id === 'lines-svg') {
+    if (state.mode === 'connecting') {
+      state.mode = 'default';
+      state.connectingFrom = null;
+      showToast('Conexión cancelada');
+    } else {
+      state.selectedNodeId = null;
+      closeSheet();
+    }
+    render();
+  }
+});
+
+// Start
+init();
+</script>
+</body>
+</html>
