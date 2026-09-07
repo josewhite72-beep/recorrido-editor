@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recorrido Editor (Checkpoint 1-3)</title>
+<title>Recorrido Editor (Checkpoint 4)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #f1f5f9; }
@@ -16,6 +17,7 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
 .btn:active { background: #e2e8f0; }
 .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
 .btn-danger { background: #ef4444; color: #fff; border-color: #ef4444; }
+.btn-secondary { background: #e2e8f0; color: #334155; border-color: #cbd5e1; }
 
 /* Canvas Area */
 #canvas-container { flex: 1; overflow: auto; position: relative; touch-action: pan-x pan-y; background-color: #f8fafc; background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px); background-size: 24px 24px; }
@@ -30,10 +32,9 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   color: #fff; font-weight: 700; font-size: 0.9rem; text-align: center; padding: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: grab; z-index: 2;
-  border: 3px solid transparent; transition: border-color 0.2s, transform 0.1s;
-  touch-action: none; /* Critical for drag without scrolling */
+  border: 3px solid transparent; transition: border-color 0.2s;
+  touch-action: none;
 }
-.node:active { cursor: grabbing; }
 .node.selected { border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.3); }
 .node .icon { font-size: 1.8rem; margin-bottom: 4px; pointer-events: none; }
 .node .label { pointer-events: none; line-height: 1.2; }
@@ -50,10 +51,10 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
   position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
   border-radius: 20px 20px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
   transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 100; max-height: 70vh; display: flex; flex-direction: column;
+  z-index: 100; max-height: 85vh; display: flex; flex-direction: column;
 }
 .bottom-sheet.open { transform: translateY(0); }
-.sheet-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.sheet-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .sheet-header h2 { font-size: 1.1rem; color: #0f172a; }
 .sheet-content { padding: 20px; overflow-y: auto; flex: 1; }
 .form-group { margin-bottom: 16px; }
@@ -63,8 +64,39 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
   font-size: 1rem; font-family: inherit; background: #f8fafc;
 }
 .form-group textarea { min-height: 80px; resize: vertical; }
-.sheet-actions { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; }
+.sheet-actions { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; flex-shrink: 0; }
 .sheet-actions .btn { flex: 1; padding: 12px; font-size: 1rem; }
+
+/* Pairs Editor */
+.pairs-section { margin-top: 20px; padding-top: 16px; border-top: 2px dashed #e2e8f0; }
+.pairs-section h3 { font-size: 0.95rem; color: #0f172a; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.pairs-section h3 .count { font-size: 0.8rem; color: #64748b; font-weight: 500; }
+.pairs-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.pair-row { display: grid; grid-template-columns: 1fr 1fr 36px; gap: 6px; align-items: center; }
+.pair-row input { padding: 8px 10px; font-size: 0.9rem; }
+.pair-row .btn-remove { width: 36px; height: 36px; border-radius: 8px; background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.pair-row .btn-remove:active { background: #fecaca; }
+.pairs-actions { display: flex; flex-direction: column; gap: 8px; }
+.pairs-actions .btn { width: 100%; padding: 10px; font-size: 0.9rem; }
+
+/* Paste Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: #fff; border-radius: 16px; width: 100%; max-width: 500px;
+  max-height: 80vh; display: flex; flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+.modal-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { font-size: 1rem; color: #0f172a; }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-body p { font-size: 0.85rem; color: #64748b; margin-bottom: 12px; line-height: 1.5; }
+.modal-body textarea { min-height: 160px; font-family: monospace; font-size: 0.9rem; }
+.modal-footer { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; }
+.modal-footer .btn { flex: 1; padding: 12px; font-size: 0.95rem; }
 
 /* Toast Notification */
 .toast {
@@ -114,7 +146,7 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
     </div>
     <div class="form-group">
       <label>Tipo de Actividad</label>
-      <select id="editType" onchange="updateNodeData('type', this.value)">
+      <select id="editType" onchange="updateNodeType(this.value)">
         <option value="signpost">Signpost (Inicio/Texto)</option>
         <option value="flashcards">Flashcards</option>
         <option value="memory">Memory Game</option>
@@ -127,10 +159,38 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
       <label>Signpost / Prompt</label>
       <textarea id="editSignpost" oninput="updateNodeData('signpost', this.value)"></textarea>
     </div>
+    <div class="pairs-section" id="pairsSection" style="display:none;">
+      <h3>Términos y Definiciones <span class="count" id="pairsCount"></span></h3>
+      <div class="pairs-list" id="pairsList"></div>
+      <div class="pairs-actions">
+        <button class="btn btn-secondary" onclick="addPairRow()">＋ Agregar fila</button>
+        <button class="btn btn-secondary" onclick="openPasteModal()">📋 Pegar desde texto</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('xlsxInput').click()">📊 Importar Excel</button>
+        <input type="file" id="xlsxInput" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
+      </div>
+    </div>
   </div>
   <div class="sheet-actions">
     <button class="btn btn-danger" onclick="deleteSelectedNode()">Eliminar Nodo</button>
     <button class="btn btn-primary" onclick="closeSheet()">Guardar y Cerrar</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pasteModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Pegar desde texto</h3>
+      <button class="btn" onclick="closePasteModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Pega aquí tus pares en formato <strong>término[TAB]definición</strong>, uno por línea. Ejemplo:</p>
+      <p style="background:#f1f5f9;padding:10px;border-radius:6px;font-family:monospace;font-size:0.8rem;">cat&nbsp;&nbsp;&nbsp;&nbsp;meow<br>dog&nbsp;&nbsp;&nbsp;&nbsp;woof<br>cow&nbsp;&nbsp;&nbsp;&nbsp;moo</p>
+      <textarea id="pasteArea" placeholder="cat&#9;meow&#10;dog&#9;woof"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closePasteModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="applyPastedText()">Aplicar</button>
+    </div>
   </div>
 </div>
 
@@ -147,10 +207,12 @@ const STYLES = {
   THINK: { color: '#334155', icon: '💭' }
 };
 
+const PAIR_TYPES = ['flashcards', 'memory', 'quiz'];
+
 const DEFAULT_DATA = {
   nodes: [
     { id: 'n1', label: 'READY', type: 'signpost', x: 100, y: 100, width: 130, height: 80, color: '#d97706', icon: '🚀', signpost: '¡Bienvenido! Toca Start.' },
-    { id: 'n2', label: 'LEARN', type: 'flashcards', x: 300, y: 100, width: 130, height: 80, color: '#2563eb', icon: '📚', signpost: 'Escucha y repite.' }
+    { id: 'n2', label: 'LEARN', type: 'flashcards', x: 300, y: 100, width: 130, height: 80, color: '#2563eb', icon: '📚', signpost: 'Escucha y repite.', pairs: [{a:'cat',b:'meow'},{a:'dog',b:'woof'}] }
   ],
   edges: [ { id: 'e1', from: 'n1', to: 'n2' } ]
 };
@@ -158,7 +220,7 @@ const DEFAULT_DATA = {
 let state = { nodes: [], edges: [], selectedNodeId: null, mode: 'default', connectingFrom: null };
 let isDragging = false, dragNodeId = null, dragOffsetX = 0, dragOffsetY = 0;
 let dragStartX = 0, dragStartY = 0;
-const DRAG_THRESHOLD = 10; // px de movimiento para considerar que es un arrastre
+const DRAG_THRESHOLD = 10;
 
 // --- 2. INIT & PERSISTENCE ---
 function init() {
@@ -181,7 +243,7 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// --- 3. RENDER ---
+// --- 3. RENDER (solo para el canvas, NO durante drag activo) ---
 function render() {
   const nodesContainer = document.getElementById('nodes-container');
   const svg = document.getElementById('lines-svg');
@@ -199,9 +261,7 @@ function render() {
     const x2 = to.x + to.width / 2;
     const y2 = to.y + to.height / 2;
 
-    // Visible line
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('id', 'edgevis-' + edge.id);
     path.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
     path.setAttribute('stroke', state.mode === 'connecting' && state.connectingFrom === edge.from ? '#0d9488' : '#64748b');
     path.setAttribute('stroke-width', state.mode === 'connecting' && state.connectingFrom === edge.from ? '4' : '3');
@@ -209,9 +269,7 @@ function render() {
     path.setAttribute('pointer-events', 'none');
     svg.appendChild(path);
 
-    // Invisible hit-testing line (24px wide for easy mobile tap)
     const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    hitPath.setAttribute('id', 'edgehit-' + edge.id);
     hitPath.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
     hitPath.setAttribute('stroke', 'transparent');
     hitPath.setAttribute('stroke-width', '24');
@@ -230,7 +288,6 @@ function render() {
   // Render Nodes
   state.nodes.forEach(node => {
     const el = document.createElement('div');
-    el.id = 'node-' + node.id;
     el.className = `node ${state.selectedNodeId === node.id ? 'selected' : ''}`;
     el.style.left = node.x + 'px';
     el.style.top = node.y + 'px';
@@ -238,44 +295,11 @@ function render() {
     el.style.minHeight = node.height + 'px';
     el.style.background = node.color;
     el.innerHTML = `<div class="icon">${node.icon}</div><div class="label">${node.label}</div>`;
-    
-    // Pointer events for drag and select
     el.addEventListener('pointerdown', (e) => onNodePointerDown(e, node.id));
-    
     nodesContainer.appendChild(el);
   });
 
-  // Update UI buttons
   document.getElementById('fabConnect').classList.toggle('active', state.mode === 'connecting');
-}
-
-// --- 3b. LIGHTWEIGHT UPDATES DURING DRAG (no destruyen el DOM, preservan pointer capture) ---
-function updateEdgePath(edgeId) {
-  const edge = state.edges.find(e => e.id === edgeId);
-  if (!edge) return;
-  const from = state.nodes.find(n => n.id === edge.from);
-  const to = state.nodes.find(n => n.id === edge.to);
-  if (!from || !to) return;
-  const x1 = from.x + from.width / 2, y1 = from.y + from.height / 2;
-  const x2 = to.x + to.width / 2, y2 = to.y + to.height / 2;
-  const d = `M ${x1} ${y1} L ${x2} ${y2}`;
-  const visible = document.getElementById('edgevis-' + edgeId);
-  const hit = document.getElementById('edgehit-' + edgeId);
-  if (visible) visible.setAttribute('d', d);
-  if (hit) hit.setAttribute('d', d);
-}
-
-function updateNodeVisualPosition(nodeId) {
-  const node = state.nodes.find(n => n.id === nodeId);
-  if (!node) return;
-  const el = document.getElementById('node-' + nodeId);
-  if (el) {
-    el.style.left = node.x + 'px';
-    el.style.top = node.y + 'px';
-  }
-  state.edges.forEach(edge => {
-    if (edge.from === nodeId || edge.to === nodeId) updateEdgePath(edge.id);
-  });
 }
 
 // --- 4. INTERACTION (DRAG & CONNECT) ---
@@ -285,20 +309,16 @@ function onNodePointerDown(e, nodeId) {
     return;
   }
 
-  e.preventDefault(); // Prevenir comportamientos por defecto del navegador
-  
-  // 1. Inicializar tracking, asumir que es un tap hasta que se demuestre lo contrario
+  e.preventDefault();
   dragNodeId = nodeId;
   dragStartX = e.clientX;
   dragStartY = e.clientY;
   isDragging = false;
 
-  // 2. Calcular offset usando currentTarget (el nodo .node) para evitar saltos si se toca un hijo (.icon/.label)
   const rect = e.currentTarget.getBoundingClientRect();
   dragOffsetX = e.clientX - rect.left;
   dragOffsetY = e.clientY - rect.top;
 
-  // 3. Capturar el pointer para seguir el gesto aunque el dedo se salga del nodo
   e.currentTarget.setPointerCapture(e.pointerId);
   e.currentTarget.addEventListener('pointermove', onPointerMove);
   e.currentTarget.addEventListener('pointerup', onPointerUp);
@@ -308,56 +328,88 @@ function onNodePointerDown(e, nodeId) {
 function onPointerMove(e) {
   if (!dragNodeId) return;
 
-  // 1. Calcular distancia recorrida desde el pointerdown
   const dx = e.clientX - dragStartX;
   const dy = e.clientY - dragStartY;
   const distance = Math.sqrt(dx * dx + dy * dy);
 
-  // 2. Si supera el umbral, promocionar a "arrastre real"
   if (!isDragging && distance > DRAG_THRESHOLD) {
     isDragging = true;
   }
 
-  // 3. Si ya es un arrastre, mover el nodo
   if (isDragging) {
-    e.preventDefault(); // Prevenir scroll del canvas mientras se arrastra
+    e.preventDefault();
+    const node = state.nodes.find(n => n.id === dragNodeId);
+    const el = e.currentTarget;
     
+    // Usar getBoundingClientRect del nodo como referencia, calcular nueva posición en coordenadas del canvas
     const canvasContent = document.getElementById('canvas-content');
     const canvasRect = canvasContent.getBoundingClientRect();
-    // canvasRect ya viene en coordenadas de viewport incluyendo el scroll actual
-    // del contenedor (getBoundingClientRect siempre refleja el scroll vigente).
-    // Sumar container.scrollLeft/scrollTop aquí lo contaba DOS veces, lo que
-    // desplazaba el nodo lejos del dedo y sesgaba el movimiento hacia la derecha
-    // en cuanto había cualquier scroll de por medio.
+    
     const newX = (e.clientX - canvasRect.left) - dragOffsetX;
     const newY = (e.clientY - canvasRect.top) - dragOffsetY;
     
-    const node = state.nodes.find(n => n.id === dragNodeId);
-    node.x = Math.max(0, Math.round(newX / 10) * 10); // Snap a grilla de 10px
+    node.x = Math.max(0, Math.round(newX / 10) * 10);
     node.y = Math.max(0, Math.round(newY / 10) * 10);
-
-    // IMPORTANTE: nunca llamar a render() completo aquí — destruiría el nodo
-    // que tiene el pointer capture activo y cortaría el resto del gesto.
-    // Solo actualizamos su posición y las aristas conectadas, in-place.
-    updateNodeVisualPosition(dragNodeId);
+    
+    // Actualización in-place: solo este nodo y sus aristas
+    el.style.left = node.x + 'px';
+    el.style.top = node.y + 'px';
+    updateEdgesForNode(node.id);
   }
+}
+
+function updateEdgesForNode(nodeId) {
+  const svg = document.getElementById('lines-svg');
+  // Reconstruir solo las aristas (es rápido, son pocas)
+  const paths = svg.querySelectorAll('path');
+  paths.forEach(p => p.remove());
+  
+  state.edges.forEach(edge => {
+    const from = state.nodes.find(n => n.id === edge.from);
+    const to = state.nodes.find(n => n.id === edge.to);
+    if (!from || !to) return;
+
+    const x1 = from.x + from.width / 2;
+    const y1 = from.y + from.height / 2;
+    const x2 = to.x + to.width / 2;
+    const y2 = to.y + to.height / 2;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+    path.setAttribute('stroke', state.mode === 'connecting' && state.connectingFrom === edge.from ? '#0d9488' : '#64748b');
+    path.setAttribute('stroke-width', state.mode === 'connecting' && state.connectingFrom === edge.from ? '4' : '3');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('pointer-events', 'none');
+    svg.appendChild(path);
+
+    const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hitPath.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+    hitPath.setAttribute('stroke', 'transparent');
+    hitPath.setAttribute('stroke-width', '24');
+    hitPath.setAttribute('fill', 'none');
+    hitPath.setAttribute('pointer-events', 'stroke');
+    hitPath.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('¿Eliminar esta conexión?')) {
+        state.edges = state.edges.filter(ed => ed.id !== edge.id);
+        saveState(); render();
+      }
+    });
+    svg.appendChild(hitPath);
+  });
 }
 
 function onPointerUp(e) {
   if (!dragNodeId) return;
 
-  // 1. Decidir la acción final basada en si se cruzó el umbral
   if (!isDragging) {
-    // Fue un TAP: seleccionar y abrir panel
     state.selectedNodeId = dragNodeId;
     openSheet(dragNodeId);
-    render(); // Actualizar borde de selección visual
+    render();
   } else {
-    // Fue un DRAG: solo guardar el estado
     saveState();
   }
 
-  // 2. Limpieza de estado y eventos
   isDragging = false;
   dragNodeId = null;
   e.currentTarget.releasePointerCapture(e.pointerId);
@@ -381,8 +433,6 @@ function handleConnectTap(targetNodeId) {
     showToast('No puedes conectar un nodo consigo mismo');
     return;
   }
-  
-  // Check if edge already exists
   const exists = state.edges.some(edge => edge.from === state.connectingFrom && edge.to === targetNodeId);
   if (exists) {
     showToast('Esta conexión ya existe');
@@ -390,7 +440,6 @@ function handleConnectTap(targetNodeId) {
     state.edges.push({ id: 'e' + Date.now(), from: state.connectingFrom, to: targetNodeId });
     showToast('¡Conexión creada!');
   }
-  
   state.mode = 'default';
   state.connectingFrom = null;
   saveState();
@@ -402,23 +451,14 @@ function addNode() {
   const container = document.getElementById('canvas-container');
   const x = container.scrollLeft + (container.clientWidth / 2) - 65;
   const y = container.scrollTop + (container.clientHeight / 2) - 40;
-  
   const keys = Object.keys(STYLES);
   const randomKey = keys[Math.floor(Math.random() * keys.length)];
   const style = STYLES[randomKey];
-  
   const newNode = {
-    id: 'n' + Date.now(),
-    label: randomKey,
-    type: 'signpost',
-    x: Math.round(x / 10) * 10,
-    y: Math.round(y / 10) * 10,
-    width: 130, height: 80,
-    color: style.color,
-    icon: style.icon,
-    signpost: ''
+    id: 'n' + Date.now(), label: randomKey, type: 'signpost',
+    x: Math.round(x / 10) * 10, y: Math.round(y / 10) * 10,
+    width: 130, height: 80, color: style.color, icon: style.icon, signpost: ''
   };
-  
   state.nodes.push(newNode);
   state.selectedNodeId = newNode.id;
   saveState();
@@ -429,7 +469,6 @@ function addNode() {
 function deleteSelectedNode() {
   if (!state.selectedNodeId) return;
   if (!confirm('¿Eliminar este nodo y sus conexiones?')) return;
-  
   state.nodes = state.nodes.filter(n => n.id !== state.selectedNodeId);
   state.edges = state.edges.filter(e => e.from !== state.selectedNodeId && e.to !== state.selectedNodeId);
   state.selectedNodeId = null;
@@ -441,15 +480,19 @@ function deleteSelectedNode() {
 function openSheet(nodeId) {
   const node = state.nodes.find(n => n.id === nodeId);
   if (!node) return;
+  // Sincronizar aquí, no confiar en que el llamador ya lo haya hecho —
+  // así renderPairsEditor() (que lee state.selectedNodeId) siempre
+  // corresponde al nodo que openSheet() realmente abrió.
+  state.selectedNodeId = nodeId;
   document.getElementById('editLabel').value = node.label;
   document.getElementById('editType').value = node.type;
   document.getElementById('editSignpost').value = node.signpost || '';
+  updatePairsVisibility(node.type);
   document.getElementById('bottomSheet').classList.add('open');
 }
 
 function closeSheet() {
   document.getElementById('bottomSheet').classList.remove('open');
-  // Deselect if not in connecting mode
   if (state.mode !== 'connecting') {
     state.selectedNodeId = null;
     render();
@@ -460,18 +503,194 @@ function updateNodeData(field, value) {
   if (!state.selectedNodeId) return;
   const node = state.nodes.find(n => n.id === state.selectedNodeId);
   node[field] = value;
-  
-  // Auto-update icon/color if label matches a known stage
   if (field === 'label' && STYLES[value.toUpperCase()]) {
     node.color = STYLES[value.toUpperCase()].color;
     node.icon = STYLES[value.toUpperCase()].icon;
   }
-  
   saveState();
-  render(); // Re-render to show label/icon changes immediately
+  render();
 }
 
-// --- 7. IMPORT / EXPORT ---
+function updateNodeType(newType) {
+  if (!state.selectedNodeId) return;
+  const node = state.nodes.find(n => n.id === state.selectedNodeId);
+  node.type = newType;
+  updatePairsVisibility(newType);
+  saveState();
+  render();
+}
+
+function updatePairsVisibility(type) {
+  const section = document.getElementById('pairsSection');
+  if (PAIR_TYPES.includes(type)) {
+    section.style.display = 'block';
+    renderPairsEditor();
+  } else {
+    section.style.display = 'none';
+  }
+}
+
+// --- 7. PAIRS EDITOR ---
+function renderPairsEditor() {
+  const node = state.nodes.find(n => n.id === state.selectedNodeId);
+  if (!node) return;
+  if (!node.pairs) node.pairs = [];
+  
+  const list = document.getElementById('pairsList');
+  const count = document.getElementById('pairsCount');
+  count.textContent = `(${node.pairs.length} par${node.pairs.length !== 1 ? 'es' : ''})`;
+  
+  list.innerHTML = '';
+  node.pairs.forEach((pair, idx) => {
+    const row = document.createElement('div');
+    row.className = 'pair-row';
+    row.innerHTML = `
+      <input type="text" value="${escapeHtml(pair.a || '')}" placeholder="Término" oninput="updatePairField(${idx}, 'a', this.value)">
+      <input type="text" value="${escapeHtml(pair.b || '')}" placeholder="Definición" oninput="updatePairField(${idx}, 'b', this.value)">
+      <button class="btn-remove" onclick="removePairRow(${idx})">✕</button>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function addPairRow() {
+  const node = state.nodes.find(n => n.id === state.selectedNodeId);
+  if (!node) return;
+  if (!node.pairs) node.pairs = [];
+  node.pairs.push({ a: '', b: '' });
+  saveState();
+  renderPairsEditor();
+  // Scroll al final de la lista
+  const list = document.getElementById('pairsList');
+  list.scrollTop = list.scrollHeight;
+}
+
+function removePairRow(idx) {
+  const node = state.nodes.find(n => n.id === state.selectedNodeId);
+  if (!node || !node.pairs) return;
+  node.pairs.splice(idx, 1);
+  saveState();
+  renderPairsEditor();
+}
+
+function updatePairField(idx, field, value) {
+  const node = state.nodes.find(n => n.id === state.selectedNodeId);
+  if (!node || !node.pairs || !node.pairs[idx]) return;
+  node.pairs[idx][field] = value;
+  saveState();
+}
+
+function updateNodePairs(pairs) {
+  const node = state.nodes.find(n => n.id === state.selectedNodeId);
+  if (!node) return;
+  node.pairs = pairs;
+  saveState();
+  renderPairsEditor();
+}
+
+// --- 8. PASTE FROM TEXT (TSV) ---
+function openPasteModal() {
+  document.getElementById('pasteArea').value = '';
+  document.getElementById('pasteModal').classList.add('open');
+}
+
+function closePasteModal() {
+  document.getElementById('pasteModal').classList.remove('open');
+}
+
+function applyPastedText() {
+  const text = document.getElementById('pasteArea').value;
+  if (!text.trim()) {
+    showToast('El área de texto está vacía');
+    return;
+  }
+  
+  const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+  const pairs = [];
+  let parsedCount = 0;
+  
+  lines.forEach(line => {
+    // Soportar tab o múltiples espacios como separador
+    const parts = line.split('\t');
+    if (parts.length >= 2) {
+      const a = parts[0].trim();
+      const b = parts.slice(1).join('\t').trim();
+      if (a && b) {
+        pairs.push({ a, b });
+        parsedCount++;
+      }
+    } else {
+      // Intentar con separador de 2+ espacios como fallback
+      const fallback = line.split(/\s{2,}/);
+      if (fallback.length >= 2) {
+        const a = fallback[0].trim();
+        const b = fallback.slice(1).join(' ').trim();
+        if (a && b) {
+          pairs.push({ a, b });
+          parsedCount++;
+        }
+      }
+    }
+  });
+  
+  if (pairs.length === 0) {
+    showToast('No se encontraron pares válidos. Usa formato: término[TAB]definición');
+    return;
+  }
+  
+  updateNodePairs(pairs);
+  closePasteModal();
+  showToast(`${parsedCount} par${parsedCount !== 1 ? 'es' : ''} importado${parsedCount !== 1 ? 's' : ''}`);
+}
+
+// --- 9. IMPORT EXCEL (SheetJS) ---
+function importExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  if (typeof XLSX === 'undefined') {
+    alert('La librería SheetJS no se cargó. Verifica tu conexión a internet.');
+    input.value = '';
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+      
+      const pairs = [];
+      rows.forEach(row => {
+        if (!Array.isArray(row) || row.length < 2) return;
+        const a = String(row[0] || '').trim();
+        const b = String(row[1] || '').trim();
+        if (a && b) pairs.push({ a, b });
+      });
+      
+      if (pairs.length === 0) {
+        showToast('El Excel no contiene pares válidos (se esperan 2 columnas)');
+      } else {
+        updateNodePairs(pairs);
+        showToast(`${pairs.length} par${pairs.length !== 1 ? 'es' : ''} importado${pairs.length !== 1 ? 's' : ''} desde Excel`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error al leer el archivo Excel: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// --- 10. IMPORT / EXPORT JSON ---
 function exportJSON() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
   const downloadAnchorNode = document.createElement('a');
@@ -505,7 +724,7 @@ function importJSON(input) {
     }
   };
   reader.readAsText(file);
-  input.value = ''; // Reset
+  input.value = '';
 }
 
 // Tap on empty canvas to deselect
