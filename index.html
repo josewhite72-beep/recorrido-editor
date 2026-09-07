@@ -1097,17 +1097,26 @@ function clearBackground() {
 function deleteBackground(bgId) {
   if (!confirm('¿Eliminar esta imagen de la biblioteca?')) return;
   const bg = backgrounds.find(b => b.id === bgId);
-  if (bg) {
-    bg.dataUrl = null;
-    if (state.meta.backgroundId === bgId) {
-      state.meta.backgroundId = null;
-      applyBackground();
-    }
-    saveBackgrounds();
-    saveState();
-    renderBackgroundsGrid();
-    showToast('Imagen eliminada');
+  if (!bg) return;
+
+  if (state.meta.backgroundId === bgId) {
+    state.meta.backgroundId = null;
+    applyBackground();
   }
+
+  const isCustomSlot = bgId.startsWith('bg_custom_');
+  if (isCustomSlot) {
+    // Los 12 slots fijos siempre existen (aunque queden vacíos); un fondo
+    // personalizado agregado por el docente no debe dejar un slot fantasma.
+    backgrounds = backgrounds.filter(b => b.id !== bgId);
+  } else {
+    bg.dataUrl = null;
+  }
+
+  saveBackgrounds();
+  saveState();
+  renderBackgroundsGrid();
+  showToast('Imagen eliminada');
 }
 
 function uploadForSlot(bgId) {
