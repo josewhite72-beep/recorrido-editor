@@ -3,25 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recorrido Editor (Checkpoint 4)</title>
+<title>Recorrido Editor (Checkpoint 5)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #f1f5f9; }
 
 /* Top Bar */
-.top-bar { height: 56px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 50; flex-shrink: 0; }
-.top-bar h1 { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
-.btn-group { display: flex; gap: 8px; }
-.btn { background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.top-bar { min-height: 56px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; z-index: 50; flex-shrink: 0; gap: 8px; flex-wrap: wrap; }
+.top-bar h1 { font-size: 1rem; font-weight: 700; color: #0f172a; }
+.btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn { background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; padding: 6px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .btn:active { background: #e2e8f0; }
 .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
 .btn-danger { background: #ef4444; color: #fff; border-color: #ef4444; }
 .btn-secondary { background: #e2e8f0; color: #334155; border-color: #cbd5e1; }
+.btn-success { background: #16a34a; color: #fff; border-color: #16a34a; }
 
 /* Canvas Area */
 #canvas-container { flex: 1; overflow: auto; position: relative; touch-action: pan-x pan-y; background-color: #f8fafc; background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px); background-size: 24px 24px; }
-#canvas-content { width: 2000px; height: 2000px; position: relative; }
+#canvas-content { width: 2000px; height: 2000px; position: relative; background-size: cover; background-position: center; background-repeat: no-repeat; }
 
 /* SVG Layer for Lines */
 #lines-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
@@ -31,11 +32,11 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
   position: absolute; width: 130px; min-height: 80px; border-radius: 12px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   color: #fff; font-weight: 700; font-size: 0.9rem; text-align: center; padding: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: grab; z-index: 2;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: grab; z-index: 2;
   border: 3px solid transparent; transition: border-color 0.2s;
   touch-action: none;
 }
-.node.selected { border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.3); }
+.node.selected { border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.5); }
 .node .icon { font-size: 1.8rem; margin-bottom: 4px; pointer-events: none; }
 .node .label { pointer-events: none; line-height: 1.2; }
 
@@ -79,31 +80,49 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
 .pairs-actions { display: flex; flex-direction: column; gap: 8px; }
 .pairs-actions .btn { width: 100%; padding: 10px; font-size: 0.9rem; }
 
-/* Paste Modal */
+/* Modal */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150;
-  display: none; align-items: center; justify-content: center; padding: 20px;
+  display: none; align-items: center; justify-content: center; padding: 16px;
 }
 .modal-overlay.open { display: flex; }
 .modal {
-  background: #fff; border-radius: 16px; width: 100%; max-width: 500px;
-  max-height: 80vh; display: flex; flex-direction: column;
+  background: #fff; border-radius: 16px; width: 100%; max-width: 560px;
+  max-height: 90vh; display: flex; flex-direction: column;
   box-shadow: 0 10px 40px rgba(0,0,0,0.3);
 }
-.modal-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .modal-header h3 { font-size: 1rem; color: #0f172a; }
 .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
 .modal-body p { font-size: 0.85rem; color: #64748b; margin-bottom: 12px; line-height: 1.5; }
-.modal-body textarea { min-height: 160px; font-family: monospace; font-size: 0.9rem; }
-.modal-footer { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; }
+.modal-body textarea { min-height: 160px; font-family: monospace; font-size: 0.85rem; }
+.modal-footer { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; flex-shrink: 0; }
 .modal-footer .btn { flex: 1; padding: 12px; font-size: 0.95rem; }
 
-/* Toast Notification */
+/* Backgrounds Grid */
+.bg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.bg-slot {
+  border: 2px solid #e2e8f0; border-radius: 10px; overflow: hidden;
+  display: flex; flex-direction: column; background: #f8fafc;
+}
+.bg-slot.has-image { border-color: #94a3b8; }
+.bg-slot.active { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3); }
+.bg-thumb {
+  width: 100%; aspect-ratio: 16/10; background: #e2e8f0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; color: #94a3b8; overflow: hidden;
+}
+.bg-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.bg-label { padding: 6px 8px; font-size: 0.72rem; font-weight: 600; color: #334155; text-align: center; line-height: 1.2; }
+.bg-actions { display: flex; gap: 4px; padding: 0 6px 6px; }
+.bg-actions .btn { flex: 1; padding: 6px 4px; font-size: 0.7rem; }
+
+/* Toast */
 .toast {
   position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px);
   background: #0f172a; color: #fff; padding: 10px 20px; border-radius: 24px;
   font-size: 0.9rem; font-weight: 600; opacity: 0; pointer-events: none;
-  transition: all 0.3s ease; z-index: 200; white-space: nowrap;
+  transition: all 0.3s ease; z-index: 200; white-space: nowrap; max-width: 90vw;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -113,11 +132,13 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
 <body>
 
 <div class="top-bar">
-  <h1>🗺️ Recorrido Editor</h1>
+  <h1>🗺️ Recorrido</h1>
   <div class="btn-group">
     <button class="btn" onclick="exportJSON()">⬇ Exportar</button>
     <button class="btn" onclick="document.getElementById('fileInput').click()">⬆ Importar</button>
     <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importJSON(this)">
+    <button class="btn btn-success" onclick="openAoAModal()">📥 Importar de AoA</button>
+    <button class="btn" onclick="openBackgroundsModal()">🖼️ Fondos</button>
     <button class="btn btn-primary" onclick="alert('Fase 6: Aquí se lanzará el motor de juego con este grafo.')">▶ Jugar</button>
   </div>
 </div>
@@ -156,8 +177,12 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
       </select>
     </div>
     <div class="form-group">
-      <label>Signpost / Prompt</label>
+      <label>Signpost / Instrucción</label>
       <textarea id="editSignpost" oninput="updateNodeData('signpost', this.value)"></textarea>
+    </div>
+    <div class="form-group" id="promptGroup" style="display:none;">
+      <label>Prompt (pregunta o instrucción específica)</label>
+      <textarea id="editPrompt" oninput="updateNodeData('prompt', this.value)" placeholder="Ej: Draw a cat / What is your favorite animal?"></textarea>
     </div>
     <div class="pairs-section" id="pairsSection" style="display:none;">
       <h3>Términos y Definiciones <span class="count" id="pairsCount"></span></h3>
@@ -176,6 +201,7 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
   </div>
 </div>
 
+<!-- Modal: Pegar TSV -->
 <div class="modal-overlay" id="pasteModal">
   <div class="modal">
     <div class="modal-header">
@@ -183,13 +209,66 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
       <button class="btn" onclick="closePasteModal()">✕</button>
     </div>
     <div class="modal-body">
-      <p>Pega aquí tus pares en formato <strong>término[TAB]definición</strong>, uno por línea. Ejemplo:</p>
-      <p style="background:#f1f5f9;padding:10px;border-radius:6px;font-family:monospace;font-size:0.8rem;">cat&nbsp;&nbsp;&nbsp;&nbsp;meow<br>dog&nbsp;&nbsp;&nbsp;&nbsp;woof<br>cow&nbsp;&nbsp;&nbsp;&nbsp;moo</p>
+      <p>Pega aquí tus pares en formato <strong>término[TAB]definición</strong>, uno por línea.</p>
       <textarea id="pasteArea" placeholder="cat&#9;meow&#10;dog&#9;woof"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closePasteModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="applyPastedText()">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Importar desde AoA -->
+<div class="modal-overlay" id="aoaModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📥 Importar desde AoA Stage Weaver</h3>
+      <button class="btn" onclick="closeAoAModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Pega aquí el JSON generado por <strong>"Lesson Planner → Deck.Toys"</strong> (modo "Recorrido AoA"). Se crearán 6 nodos conectados en línea con las fases READY → LEARN → PRACTICE → PERFORM → SHOW → THINK.</p>
+      <div class="form-group">
+        <label>Grado</label>
+        <select id="aoaGrade">
+          <option value="K">Kinder/PreK</option>
+          <option value="1">1st Grade</option>
+          <option value="2">2nd Grade</option>
+          <option value="3">3rd Grade</option>
+          <option value="4">4th Grade</option>
+          <option value="5">5th Grade</option>
+          <option value="6">6th Grade</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Scenario (clave corta ej. "5" o nombre completo)</label>
+        <input type="text" id="aoaScenario" placeholder="Ej: 5 o Animals on the farm">
+      </div>
+      <div class="form-group">
+        <label>JSON de las 6 fases</label>
+        <textarea id="aoaJson" placeholder='{"READY":{"signpost":"..."},"LEARN":{"signpost":"...","pairs":[...]}...}'></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAoAModal()">Cancelar</button>
+      <button class="btn btn-success" onclick="applyAoAImport()">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Biblioteca de fondos -->
+<div class="modal-overlay" id="backgroundsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🖼️ Biblioteca de Fondos</h3>
+      <button class="btn" onclick="closeBackgroundsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Selecciona un fondo para el canvas. Los fondos se guardan localmente en este dispositivo.</p>
+      <div class="bg-grid" id="bgGrid"></div>
+      <button class="btn btn-secondary" style="width:100%;padding:12px;" onclick="document.getElementById('bgFileInput').click()">＋ Agregar fondo nuevo</button>
+      <input type="file" id="bgFileInput" accept="image/*" style="display:none" onchange="addBackground(this)">
+      <button class="btn" style="width:100%;padding:10px;margin-top:8px;" onclick="clearBackground()">Quitar fondo actual</button>
     </div>
   </div>
 </div>
@@ -207,9 +286,53 @@ const STYLES = {
   THINK: { color: '#334155', icon: '💭' }
 };
 
+const AOA_PHASES = ['READY', 'LEARN', 'PRACTICE', 'PERFORM', 'SHOW', 'THINK'];
+const AOA_TYPE_MAP = {
+  READY: 'signpost',
+  LEARN: 'flashcards',
+  PRACTICE: 'memory',
+  PERFORM: 'quiz',
+  SHOW: 'response',
+  THINK: 'reflect'
+};
+
 const PAIR_TYPES = ['flashcards', 'memory', 'quiz'];
+const PROMPT_TYPES = ['response', 'reflect'];
+
+const SCENARIO_BG_MAP = {
+  "K-1": "bg_classroom", "K-2": "bg_classroom", "K-3": "bg_classroom", "K-4": "bg_classroom",
+  "K-5": "bg_farm_animals", "K-6": "bg_playroom", "K-7": "bg_playroom", "K-8": "bg_classroom",
+  "1-1": "bg_calendar", "1-2": "bg_weather", "1-3": "bg_colors_shapes", "1-4": "bg_home",
+  "1-5": "bg_colors_shapes", "1-6": "bg_colors_shapes", "1-7": "bg_colors_shapes", "1-8": "bg_nature",
+  "2-1": "bg_calendar", "2-2": "bg_classroom", "2-3": "bg_weather", "2-4": "bg_classroom",
+  "2-5": "bg_community", "2-6": "bg_nature", "2-7": "bg_nature", "2-8": "bg_culture",
+  "3-1": "bg_community", "3-2": "bg_classroom", "3-3": "bg_classroom", "3-4": "bg_weather",
+  "3-5": "bg_community", "3-6": "bg_nature", "3-7": "bg_culture", "3-8": "bg_home",
+  "4-1": "bg_community", "4-2": "bg_nature", "4-3": "bg_community", "4-4": "bg_culture",
+  "4-5": "bg_beach", "4-6": "bg_weather", "4-7": "bg_culture", "4-8": "bg_culture",
+  "5-1": "bg_classroom", "5-2": "bg_classroom", "5-3": "bg_community", "5-4": "bg_home",
+  "5-5": "bg_nature", "5-6": "bg_environment", "5-7": "bg_environment", "5-8": "bg_home",
+  "6-1": "bg_community", "6-2": "bg_community", "6-3": "bg_classroom", "6-4": "bg_classroom",
+  "6-5": "bg_community", "6-6": "bg_environment", "6-7": "bg_weather", "6-8": "bg_culture"
+};
+
+const DEFAULT_BG_SLOTS = [
+  { id: 'bg_classroom', label: 'Aula / salón de clases' },
+  { id: 'bg_calendar', label: 'Calendario / días de la semana' },
+  { id: 'bg_weather', label: 'Clima / cielo exterior' },
+  { id: 'bg_home', label: 'Hogar / interior de casa' },
+  { id: 'bg_nature', label: 'Naturaleza / jardín exterior' },
+  { id: 'bg_community', label: 'Comunidad / barrio y mercado' },
+  { id: 'bg_colors_shapes', label: 'Colores y formas' },
+  { id: 'bg_farm_animals', label: 'Granja / animales y sonidos' },
+  { id: 'bg_playroom', label: 'Espacio de juego / movimiento' },
+  { id: 'bg_culture', label: 'Cultura e identidad panameña' },
+  { id: 'bg_beach', label: 'Playa / viaje' },
+  { id: 'bg_environment', label: 'Medio ambiente / reciclaje' }
+];
 
 const DEFAULT_DATA = {
+  meta: { backgroundId: null },
   nodes: [
     { id: 'n1', label: 'READY', type: 'signpost', x: 100, y: 100, width: 130, height: 80, color: '#d97706', icon: '🚀', signpost: '¡Bienvenido! Toca Start.' },
     { id: 'n2', label: 'LEARN', type: 'flashcards', x: 300, y: 100, width: 130, height: 80, color: '#2563eb', icon: '📚', signpost: 'Escucha y repite.', pairs: [{a:'cat',b:'meow'},{a:'dog',b:'woof'}] }
@@ -217,19 +340,42 @@ const DEFAULT_DATA = {
   edges: [ { id: 'e1', from: 'n1', to: 'n2' } ]
 };
 
-let state = { nodes: [], edges: [], selectedNodeId: null, mode: 'default', connectingFrom: null };
+let state = { meta: { backgroundId: null }, nodes: [], edges: [], selectedNodeId: null, mode: 'default', connectingFrom: null };
+let backgrounds = []; // {id, label, dataUrl}
 let isDragging = false, dragNodeId = null, dragOffsetX = 0, dragOffsetY = 0;
 let dragStartX = 0, dragStartY = 0;
 const DRAG_THRESHOLD = 10;
 
 // --- 2. INIT & PERSISTENCE ---
 function init() {
+  // Cargar biblioteca de fondos
+  const savedBg = localStorage.getItem('recorrido_backgrounds');
+  if (savedBg) {
+    try { backgrounds = JSON.parse(savedBg); } catch(e) { backgrounds = []; }
+  }
+  // Asegurar que todos los slots por defecto existan (aunque estén vacíos)
+  DEFAULT_BG_SLOTS.forEach(slot => {
+    if (!backgrounds.find(b => b.id === slot.id)) {
+      backgrounds.push({ id: slot.id, label: slot.label, dataUrl: null });
+    }
+  });
+
+  // Cargar state del mapa
   const saved = localStorage.getItem('recorrido_draft');
   if (saved) {
-    try { state = JSON.parse(saved); } catch(e) { state = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+    try {
+      state = JSON.parse(saved);
+      // Compatibilidad hacia atrás: asegurar que exista meta
+      if (!state.meta) state.meta = { backgroundId: null };
+      if (state.meta.backgroundId === undefined) state.meta.backgroundId = null;
+    } catch(e) {
+      state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    }
   } else {
     state = JSON.parse(JSON.stringify(DEFAULT_DATA));
   }
+
+  applyBackground();
   render();
 }
 
@@ -237,20 +383,27 @@ function saveState() {
   localStorage.setItem('recorrido_draft', JSON.stringify(state));
 }
 
+function saveBackgrounds() {
+  try {
+    localStorage.setItem('recorrido_backgrounds', JSON.stringify(backgrounds));
+  } catch(e) {
+    showToast('Error: localStorage lleno. Elimina fondos o usa imágenes más pequeñas.');
+  }
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+  setTimeout(() => t.classList.remove('show'), 2800);
 }
 
-// --- 3. RENDER (solo para el canvas, NO durante drag activo) ---
+// --- 3. RENDER (canvas) ---
 function render() {
   const nodesContainer = document.getElementById('nodes-container');
   const svg = document.getElementById('lines-svg');
   nodesContainer.innerHTML = '';
   svg.innerHTML = '';
 
-  // Render Edges
   state.edges.forEach(edge => {
     const from = state.nodes.find(n => n.id === edge.from);
     const to = state.nodes.find(n => n.id === edge.to);
@@ -285,7 +438,6 @@ function render() {
     svg.appendChild(hitPath);
   });
 
-  // Render Nodes
   state.nodes.forEach(node => {
     const el = document.createElement('div');
     el.className = `node ${state.selectedNodeId === node.id ? 'selected' : ''}`;
@@ -302,7 +454,7 @@ function render() {
   document.getElementById('fabConnect').classList.toggle('active', state.mode === 'connecting');
 }
 
-// --- 4. INTERACTION (DRAG & CONNECT) ---
+// --- 4. INTERACTION (DRAG) ---
 function onNodePointerDown(e, nodeId) {
   if (state.mode === 'connecting') {
     handleConnectTap(nodeId);
@@ -340,18 +492,16 @@ function onPointerMove(e) {
     e.preventDefault();
     const node = state.nodes.find(n => n.id === dragNodeId);
     const el = e.currentTarget;
-    
-    // Usar getBoundingClientRect del nodo como referencia, calcular nueva posición en coordenadas del canvas
     const canvasContent = document.getElementById('canvas-content');
     const canvasRect = canvasContent.getBoundingClientRect();
-    
+
     const newX = (e.clientX - canvasRect.left) - dragOffsetX;
     const newY = (e.clientY - canvasRect.top) - dragOffsetY;
-    
+
     node.x = Math.max(0, Math.round(newX / 10) * 10);
     node.y = Math.max(0, Math.round(newY / 10) * 10);
-    
-    // Actualización in-place: solo este nodo y sus aristas
+
+    // Actualización in-place
     el.style.left = node.x + 'px';
     el.style.top = node.y + 'px';
     updateEdgesForNode(node.id);
@@ -360,10 +510,9 @@ function onPointerMove(e) {
 
 function updateEdgesForNode(nodeId) {
   const svg = document.getElementById('lines-svg');
-  // Reconstruir solo las aristas (es rápido, son pocas)
   const paths = svg.querySelectorAll('path');
   paths.forEach(p => p.remove());
-  
+
   state.edges.forEach(edge => {
     const from = state.nodes.find(n => n.id === edge.from);
     const to = state.nodes.find(n => n.id === edge.to);
@@ -420,7 +569,10 @@ function onPointerUp(e) {
 
 // --- 5. CONNECTION LOGIC ---
 function startConnectMode() {
-  if (!state.selectedNodeId) return;
+  if (!state.selectedNodeId) {
+    showToast('Primero selecciona un nodo');
+    return;
+  }
   state.mode = 'connecting';
   state.connectingFrom = state.selectedNodeId;
   closeSheet();
@@ -478,16 +630,15 @@ function deleteSelectedNode() {
 }
 
 function openSheet(nodeId) {
+  state.selectedNodeId = nodeId; // Sincronizar estado explícito
   const node = state.nodes.find(n => n.id === nodeId);
   if (!node) return;
-  // Sincronizar aquí, no confiar en que el llamador ya lo haya hecho —
-  // así renderPairsEditor() (que lee state.selectedNodeId) siempre
-  // corresponde al nodo que openSheet() realmente abrió.
-  state.selectedNodeId = nodeId;
   document.getElementById('editLabel').value = node.label;
   document.getElementById('editType').value = node.type;
   document.getElementById('editSignpost').value = node.signpost || '';
+  document.getElementById('editPrompt').value = node.prompt || '';
   updatePairsVisibility(node.type);
+  updatePromptVisibility(node.type);
   document.getElementById('bottomSheet').classList.add('open');
 }
 
@@ -502,6 +653,7 @@ function closeSheet() {
 function updateNodeData(field, value) {
   if (!state.selectedNodeId) return;
   const node = state.nodes.find(n => n.id === state.selectedNodeId);
+  if (!node) return;
   node[field] = value;
   if (field === 'label' && STYLES[value.toUpperCase()]) {
     node.color = STYLES[value.toUpperCase()].color;
@@ -514,8 +666,10 @@ function updateNodeData(field, value) {
 function updateNodeType(newType) {
   if (!state.selectedNodeId) return;
   const node = state.nodes.find(n => n.id === state.selectedNodeId);
+  if (!node) return;
   node.type = newType;
   updatePairsVisibility(newType);
+  updatePromptVisibility(newType);
   saveState();
   render();
 }
@@ -530,16 +684,21 @@ function updatePairsVisibility(type) {
   }
 }
 
+function updatePromptVisibility(type) {
+  const group = document.getElementById('promptGroup');
+  group.style.display = PROMPT_TYPES.includes(type) ? 'block' : 'none';
+}
+
 // --- 7. PAIRS EDITOR ---
 function renderPairsEditor() {
   const node = state.nodes.find(n => n.id === state.selectedNodeId);
   if (!node) return;
   if (!node.pairs) node.pairs = [];
-  
+
   const list = document.getElementById('pairsList');
   const count = document.getElementById('pairsCount');
   count.textContent = `(${node.pairs.length} par${node.pairs.length !== 1 ? 'es' : ''})`;
-  
+
   list.innerHTML = '';
   node.pairs.forEach((pair, idx) => {
     const row = document.createElement('div');
@@ -564,9 +723,6 @@ function addPairRow() {
   node.pairs.push({ a: '', b: '' });
   saveState();
   renderPairsEditor();
-  // Scroll al final de la lista
-  const list = document.getElementById('pairsList');
-  list.scrollTop = list.scrollHeight;
 }
 
 function removePairRow(idx) {
@@ -608,65 +764,55 @@ function applyPastedText() {
     showToast('El área de texto está vacía');
     return;
   }
-  
+
   const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
   const pairs = [];
-  let parsedCount = 0;
-  
+
   lines.forEach(line => {
-    // Soportar tab o múltiples espacios como separador
     const parts = line.split('\t');
     if (parts.length >= 2) {
       const a = parts[0].trim();
       const b = parts.slice(1).join('\t').trim();
-      if (a && b) {
-        pairs.push({ a, b });
-        parsedCount++;
-      }
+      if (a && b) pairs.push({ a, b });
     } else {
-      // Intentar con separador de 2+ espacios como fallback
       const fallback = line.split(/\s{2,}/);
       if (fallback.length >= 2) {
         const a = fallback[0].trim();
         const b = fallback.slice(1).join(' ').trim();
-        if (a && b) {
-          pairs.push({ a, b });
-          parsedCount++;
-        }
+        if (a && b) pairs.push({ a, b });
       }
     }
   });
-  
+
   if (pairs.length === 0) {
-    showToast('No se encontraron pares válidos. Usa formato: término[TAB]definición');
+    showToast('No se encontraron pares válidos');
     return;
   }
-  
+
   updateNodePairs(pairs);
   closePasteModal();
-  showToast(`${parsedCount} par${parsedCount !== 1 ? 'es' : ''} importado${parsedCount !== 1 ? 's' : ''}`);
+  showToast(`${pairs.length} par${pairs.length !== 1 ? 'es' : ''} importado${pairs.length !== 1 ? 's' : ''}`);
 }
 
-// --- 9. IMPORT EXCEL (SheetJS) ---
+// --- 9. IMPORT EXCEL ---
 function importExcel(input) {
   const file = input.files[0];
   if (!file) return;
-  
+
   if (typeof XLSX === 'undefined') {
     alert('La librería SheetJS no se cargó. Verifica tu conexión a internet.');
     input.value = '';
     return;
   }
-  
+
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-      
+
       const pairs = [];
       rows.forEach(row => {
         if (!Array.isArray(row) || row.length < 2) return;
@@ -674,15 +820,14 @@ function importExcel(input) {
         const b = String(row[1] || '').trim();
         if (a && b) pairs.push({ a, b });
       });
-      
+
       if (pairs.length === 0) {
-        showToast('El Excel no contiene pares válidos (se esperan 2 columnas)');
+        showToast('El Excel no contiene pares válidos');
       } else {
         updateNodePairs(pairs);
         showToast(`${pairs.length} par${pairs.length !== 1 ? 'es' : ''} importado${pairs.length !== 1 ? 's' : ''} desde Excel`);
       }
     } catch (err) {
-      console.error(err);
       alert('Error al leer el archivo Excel: ' + err.message);
     }
     input.value = '';
@@ -692,13 +837,18 @@ function importExcel(input) {
 
 // --- 10. IMPORT / EXPORT JSON ---
 function exportJSON() {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
-  const downloadAnchorNode = document.createElement('a');
-  downloadAnchorNode.setAttribute("href", dataStr);
-  downloadAnchorNode.setAttribute("download", "recorrido_mapa.json");
-  document.body.appendChild(downloadAnchorNode);
-  downloadAnchorNode.click();
-  downloadAnchorNode.remove();
+  const exportState = {
+    meta: state.meta,
+    nodes: state.nodes,
+    edges: state.edges
+  };
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportState, null, 2));
+  const a = document.createElement('a');
+  a.setAttribute("href", dataStr);
+  a.setAttribute("download", "recorrido_mapa.json");
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
   showToast('Mapa exportado');
 }
 
@@ -710,10 +860,14 @@ function importJSON(input) {
     try {
       const imported = JSON.parse(e.target.result);
       if (imported.nodes && imported.edges) {
-        state = imported;
+        state.nodes = imported.nodes;
+        state.edges = imported.edges;
+        state.meta = imported.meta || { backgroundId: null };
+        if (state.meta.backgroundId === undefined) state.meta.backgroundId = null;
         state.selectedNodeId = null;
         state.mode = 'default';
         saveState();
+        applyBackground();
         render();
         showToast('Mapa importado correctamente');
       } else {
@@ -725,6 +879,325 @@ function importJSON(input) {
   };
   reader.readAsText(file);
   input.value = '';
+}
+
+// --- 11. IMPORT FROM AoA STAGE WEAVER ---
+function openAoAModal() {
+  document.getElementById('aoaGrade').value = 'K';
+  document.getElementById('aoaScenario').value = '';
+  document.getElementById('aoaJson').value = '';
+  document.getElementById('aoaModal').classList.add('open');
+}
+
+function closeAoAModal() {
+  document.getElementById('aoaModal').classList.remove('open');
+}
+
+function applyAoAImport() {
+  const grade = document.getElementById('aoaGrade').value;
+  const scenarioInput = document.getElementById('aoaScenario').value.trim();
+  const jsonText = document.getElementById('aoaJson').value.trim();
+
+  if (!jsonText) {
+    showToast('Pega el JSON de las 6 fases');
+    return;
+  }
+
+  let aoaData;
+  try {
+    aoaData = JSON.parse(jsonText);
+  } catch(e) {
+    alert('JSON inválido: ' + e.message);
+    return;
+  }
+
+  // Validar que tenga al menos una de las fases
+  const hasAnyPhase = AOA_PHASES.some(p => aoaData[p]);
+  if (!hasAnyPhase) {
+    alert('El JSON debe contener al menos una de las fases: ' + AOA_PHASES.join(', '));
+    return;
+  }
+
+  // Decidir si reemplazar o agregar
+  let startX = 100, startY = 100;
+  if (state.nodes.length > 0) {
+    const replace = confirm('¿Reemplazar el mapa actual con las 6 fases de AoA?\n\nOK = Reemplazar\nCancelar = Agregar los 6 nodos aparte (sin borrar los existentes)');
+    if (replace) {
+      state.nodes = [];
+      state.edges = [];
+      state.meta.backgroundId = null;
+    } else {
+      // Calcular posición inicial a la derecha de los nodos existentes
+      const maxX = Math.max(...state.nodes.map(n => n.x + n.width));
+      startX = maxX + 200;
+      startY = 100;
+    }
+  }
+
+  // Generar los 6 nodos
+  const newNodes = [];
+  const newEdges = [];
+  AOA_PHASES.forEach((phase, idx) => {
+    const phaseData = aoaData[phase];
+    if (!phaseData) return;
+
+    const style = STYLES[phase];
+    const node = {
+      id: 'aoa_' + phase + '_' + Date.now() + '_' + idx,
+      label: phase,
+      type: AOA_TYPE_MAP[phase],
+      x: startX + (idx * 250),
+      y: startY,
+      width: 130,
+      height: 80,
+      color: style.color,
+      icon: style.icon,
+      signpost: phaseData.signpost || '',
+      prompt: phaseData.prompt || ''
+    };
+
+    // Agregar pairs si existen (LEARN, PRACTICE, PERFORM)
+    if (Array.isArray(phaseData.pairs) && phaseData.pairs.length > 0) {
+      node.pairs = phaseData.pairs.map(p => ({ a: String(p.a || ''), b: String(p.b || '') }));
+    }
+
+    newNodes.push(node);
+  });
+
+  // Conectar en línea: READY→LEARN→PRACTICE→PERFORM→SHOW→THINK
+  for (let i = 0; i < newNodes.length - 1; i++) {
+    newEdges.push({
+      id: 'aoa_e_' + i + '_' + Date.now(),
+      from: newNodes[i].id,
+      to: newNodes[i + 1].id
+    });
+  }
+
+  state.nodes = state.nodes.concat(newNodes);
+  state.edges = state.edges.concat(newEdges);
+
+  // Intentar asignar fondo automáticamente según Grade + Scenario
+  if (scenarioInput) {
+    const bgId = resolveScenarioBackground(grade, scenarioInput);
+    if (bgId) {
+      state.meta.backgroundId = bgId;
+      showToast(`Fondo asignado: ${getBackgroundLabel(bgId)}`);
+    } else {
+      showToast('No se encontró fondo para ese Scenario. Puedes elegirlo manualmente en 🖼️ Fondos');
+    }
+  }
+
+  saveState();
+  applyBackground();
+  render();
+  closeAoAModal();
+}
+
+function resolveScenarioBackground(grade, scenarioInput) {
+  // Intent 1: match directo con la clave "Grade-Scenario"
+  const directKey = grade + '-' + scenarioInput;
+  if (SCENARIO_BG_MAP[directKey]) return SCENARIO_BG_MAP[directKey];
+
+  // Intent 2: extraer número del input (ej: "5" de "Scenario 5" o "K-5")
+  const numMatch = scenarioInput.match(/(\d+)/);
+  if (numMatch) {
+    const num = numMatch[1];
+    const key = grade + '-' + num;
+    if (SCENARIO_BG_MAP[key]) return SCENARIO_BG_MAP[key];
+  }
+
+  return null;
+}
+
+function getBackgroundLabel(bgId) {
+  const bg = backgrounds.find(b => b.id === bgId);
+  return bg ? bg.label : bgId;
+}
+
+// --- 12. BACKGROUNDS LIBRARY ---
+function openBackgroundsModal() {
+  renderBackgroundsGrid();
+  document.getElementById('backgroundsModal').classList.add('open');
+}
+
+function closeBackgroundsModal() {
+  document.getElementById('backgroundsModal').classList.remove('open');
+}
+
+function renderBackgroundsGrid() {
+  const grid = document.getElementById('bgGrid');
+  grid.innerHTML = '';
+
+  backgrounds.forEach(bg => {
+    const slot = document.createElement('div');
+    slot.className = 'bg-slot' + (bg.dataUrl ? ' has-image' : '') + (state.meta.backgroundId === bg.id ? ' active' : '');
+
+    const thumb = document.createElement('div');
+    thumb.className = 'bg-thumb';
+    if (bg.dataUrl) {
+      const img = document.createElement('img');
+      img.src = bg.dataUrl;
+      img.alt = bg.label;
+      thumb.appendChild(img);
+    } else {
+      thumb.textContent = '🖼️';
+    }
+    slot.appendChild(thumb);
+
+    const label = document.createElement('div');
+    label.className = 'bg-label';
+    label.textContent = bg.label;
+    slot.appendChild(label);
+
+    const actions = document.createElement('div');
+    actions.className = 'bg-actions';
+
+    if (bg.dataUrl) {
+      const useBtn = document.createElement('button');
+      useBtn.className = 'btn btn-primary';
+      useBtn.textContent = state.meta.backgroundId === bg.id ? '✓ Activo' : 'Usar';
+      useBtn.onclick = () => useBackground(bg.id);
+      actions.appendChild(useBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-danger';
+      delBtn.textContent = '✕';
+      delBtn.onclick = () => deleteBackground(bg.id);
+      actions.appendChild(delBtn);
+    } else {
+      const uploadBtn = document.createElement('button');
+      uploadBtn.className = 'btn btn-secondary';
+      uploadBtn.textContent = 'Subir imagen';
+      uploadBtn.style.fontSize = '0.7rem';
+      uploadBtn.onclick = () => uploadForSlot(bg.id);
+      actions.appendChild(uploadBtn);
+    }
+
+    slot.appendChild(actions);
+    grid.appendChild(slot);
+  });
+}
+
+function useBackground(bgId) {
+  state.meta.backgroundId = bgId;
+  saveState();
+  applyBackground();
+  renderBackgroundsGrid();
+  showToast('Fondo aplicado');
+}
+
+function clearBackground() {
+  state.meta.backgroundId = null;
+  saveState();
+  applyBackground();
+  renderBackgroundsGrid();
+  showToast('Fondo quitado');
+}
+
+function deleteBackground(bgId) {
+  if (!confirm('¿Eliminar esta imagen de la biblioteca?')) return;
+  const bg = backgrounds.find(b => b.id === bgId);
+  if (bg) {
+    bg.dataUrl = null;
+    if (state.meta.backgroundId === bgId) {
+      state.meta.backgroundId = null;
+      applyBackground();
+    }
+    saveBackgrounds();
+    saveState();
+    renderBackgroundsGrid();
+    showToast('Imagen eliminada');
+  }
+}
+
+function uploadForSlot(bgId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    processAndSaveBackground(file, bgId);
+  };
+  input.click();
+}
+
+function addBackground(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Crear un nuevo slot con id único
+  const newId = 'bg_custom_' + Date.now();
+  const label = prompt('Nombre para este fondo:', file.name.replace(/\.[^.]+$/, '')) || 'Fondo personalizado';
+
+  // Agregar el slot vacío primero
+  backgrounds.push({ id: newId, label: label, dataUrl: null });
+  saveBackgrounds();
+  renderBackgroundsGrid();
+
+  // Procesar la imagen
+  processAndSaveBackground(file, newId);
+  input.value = '';
+}
+
+function processAndSaveBackground(file, bgId) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const MAX_WIDTH = 1920;
+      const QUALITY = 0.75;
+      let w = img.width;
+      let h = img.height;
+
+      if (w > MAX_WIDTH) {
+        const ratio = MAX_WIDTH / w;
+        w = MAX_WIDTH;
+        h = Math.round(h * ratio);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', QUALITY);
+
+      const bg = backgrounds.find(b => b.id === bgId);
+      if (bg) {
+        bg.dataUrl = dataUrl;
+        try {
+          saveBackgrounds();
+          renderBackgroundsGrid();
+          showToast('Imagen guardada');
+        } catch(err) {
+          showToast('Error: imagen muy grande para localStorage');
+          bg.dataUrl = null;
+        }
+      }
+    };
+    img.onerror = function() {
+      showToast('Error al procesar la imagen');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function applyBackground() {
+  const canvasContent = document.getElementById('canvas-content');
+  if (state.meta && state.meta.backgroundId) {
+    const bg = backgrounds.find(b => b.id === state.meta.backgroundId);
+    if (bg && bg.dataUrl) {
+      canvasContent.style.backgroundImage = `url(${bg.dataUrl})`;
+      canvasContent.style.backgroundSize = 'cover';
+      canvasContent.style.backgroundPosition = 'center';
+      return;
+    }
+  }
+  // Sin fondo: restaurar patrón de puntos (se controla desde el container)
+  canvasContent.style.backgroundImage = '';
 }
 
 // Tap on empty canvas to deselect
