@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recorrido Editor (Checkpoint 5)</title>
+<title>Recorrido Editor (Checkpoint 6)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -37,6 +37,7 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
   touch-action: none;
 }
 .node.selected { border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.5); }
+.node.start-node { border-color: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.4); }
 .node .icon { font-size: 1.8rem; margin-bottom: 4px; pointer-events: none; }
 .node .label { pointer-events: none; line-height: 1.2; }
 
@@ -65,8 +66,8 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
   font-size: 1rem; font-family: inherit; background: #f8fafc;
 }
 .form-group textarea { min-height: 80px; resize: vertical; }
-.sheet-actions { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; flex-shrink: 0; }
-.sheet-actions .btn { flex: 1; padding: 12px; font-size: 1rem; }
+.sheet-actions { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
+.sheet-actions .btn { flex: 1; padding: 12px; font-size: 1rem; min-width: 120px; }
 
 /* Pairs Editor */
 .pairs-section { margin-top: 20px; padding-top: 16px; border-top: 2px dashed #e2e8f0; }
@@ -126,150 +127,254 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ===== PLAYER MODE STYLES ===== */
+.player-mode { display: none; position: fixed; inset: 0; z-index: 500; flex-direction: column; }
+.player-mode.active { display: flex; }
+.player-screen {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 24px; color: #fff; position: relative; overflow-y: auto;
+}
+.player-screen.has-bg { background-size: cover; background-position: center; background-repeat: no-repeat; }
+.player-screen.has-bg .player-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.3); z-index: 0;
+}
+.player-screen.has-bg .player-content { position: relative; z-index: 1; width: 100%; }
+.player-screen:not(.has-bg) { transition: background 0.3s; }
+.player-screen:not(.has-bg) .player-content { width: 100%; }
+
+.player-top-bar {
+  position: fixed; top: 0; left: 0; right: 0; padding: 12px 16px;
+  display: flex; justify-content: space-between; align-items: center; z-index: 10;
+  background: rgba(0,0,0,0.2); backdrop-filter: blur(8px);
+}
+.player-top-bar button {
+  background: rgba(255,255,255,0.9); border: none; padding: 8px 14px; border-radius: 20px;
+  font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+.player-progress { color: #fff; font-size: 0.85rem; font-weight: 600; }
+
+.player-gesture { font-size: 4rem; margin-bottom: 8px; }
+.player-title { font-size: 2rem; letter-spacing: 2px; margin: 6px 0 14px; font-weight: 700; }
+.player-signpost {
+  font-size: 1.1rem; max-width: 640px; margin: 0 auto 22px;
+  background: rgba(255,255,255,0.15); padding: 14px 18px; border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.player-card-area {
+  background: #fff; color: #222; border-radius: 16px; padding: 24px;
+  max-width: 480px; width: 100%; min-height: 160px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1.35rem; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.player-nav-row { display: flex; gap: 14px; margin-top: 20px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.player-btn {
+  background: rgba(255,255,255,0.92); color: #222; border: none;
+  padding: 10px 20px; border-radius: 24px; font-size: 1rem; font-weight: 600; cursor: pointer;
+}
+.player-btn:disabled { opacity: 0.35; cursor: default; }
+.player-btn-choice {
+  background: rgba(255,255,255,0.92); color: #222; border: none;
+  padding: 14px 24px; border-radius: 12px; font-size: 1rem; font-weight: 600;
+  cursor: pointer; margin: 6px 0; min-width: 200px;
+}
+
+.player-memory-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  max-width: 520px; margin: 0 auto;
+}
+.player-memory-card {
+  background: #fff; color: #222; border-radius: 10px; padding: 14px 6px;
+  font-size: 0.9rem; min-height: 56px; display: flex; align-items: center;
+  justify-content: center; cursor: pointer;
+}
+.player-memory-card.matched { background: #bbf7d0; opacity: 0.65; cursor: default; }
+.player-memory-card.flipped { background: #fef3c7; }
+
+.player-quiz-options { display: flex; flex-direction: column; gap: 10px; max-width: 420px; width: 100%; margin: 0 auto; }
+.player-quiz-opt {
+  background: #fff; color: #222; padding: 12px 16px; border-radius: 10px;
+  cursor: pointer; font-size: 1.05rem; border: 3px solid transparent;
+}
+.player-quiz-opt.correct { border-color: #22c55e; background: #dcfce7; }
+.player-quiz-opt.wrong { border-color: #ef4444; background: #fee2e2; }
+
+.player-progress-text { margin-top: 10px; opacity: 0.85; font-size: 0.9rem; color: #fff; }
+
+canvas#playerDrawPad {
+  background: #fff; border-radius: 12px; touch-action: none; display: block; margin: 0 auto;
+}
+.player-palette { display: flex; gap: 8px; margin: 10px 0; justify-content: center; }
+.player-swatch {
+  width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid #fff;
+}
+
+textarea.player-response-text {
+  width: 100%; max-width: 480px; min-height: 80px; border-radius: 10px;
+  border: none; padding: 10px; font-size: 1rem; margin-top: 10px; font-family: inherit;
+}
+
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4); } 70% { box-shadow: 0 0 0 12px rgba(13, 148, 136, 0); } 100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); } }
 </style>
 </head>
 <body>
 
-<div class="top-bar">
-  <h1>🗺️ Recorrido</h1>
-  <div class="btn-group">
-    <button class="btn" onclick="exportJSON()">⬇ Exportar</button>
-    <button class="btn" onclick="document.getElementById('fileInput').click()">⬆ Importar</button>
-    <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importJSON(this)">
-    <button class="btn btn-success" onclick="openAoAModal()">📥 Importar de AoA</button>
-    <button class="btn" onclick="openBackgroundsModal()">🖼️ Fondos</button>
-    <button class="btn btn-primary" onclick="alert('Fase 6: Aquí se lanzará el motor de juego con este grafo.')">▶ Jugar</button>
+<!-- EDITOR MODE -->
+<div id="editorMode">
+  <div class="top-bar">
+    <h1>🗺️ Recorrido</h1>
+    <div class="btn-group">
+      <button class="btn" onclick="exportJSON()">⬇ Exportar</button>
+      <button class="btn" onclick="document.getElementById('fileInput').click()">⬆ Importar</button>
+      <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importJSON(this)">
+      <button class="btn btn-success" onclick="openAoAModal()">📥 Importar de AoA</button>
+      <button class="btn" onclick="openBackgroundsModal()">🖼️ Fondos</button>
+      <button class="btn btn-primary" onclick="startPlayer()">▶ Jugar</button>
+    </div>
   </div>
-</div>
 
-<div id="canvas-container">
-  <div id="canvas-content">
-    <svg id="lines-svg"></svg>
-    <div id="nodes-container"></div>
+  <div id="canvas-container">
+    <div id="canvas-content">
+      <svg id="lines-svg"></svg>
+      <div id="nodes-container"></div>
+    </div>
   </div>
-</div>
 
-<div class="fab-container">
-  <button class="fab fab-connect" id="fabConnect" onclick="startConnectMode()">🔗</button>
-  <button class="fab" onclick="addNode()">＋</button>
-</div>
+  <div class="fab-container">
+    <button class="fab fab-connect" id="fabConnect" onclick="startConnectMode()">🔗</button>
+    <button class="fab" onclick="addNode()">＋</button>
+  </div>
 
-<div class="bottom-sheet" id="bottomSheet">
-  <div class="sheet-header">
-    <h2>Editar Nodo</h2>
-    <button class="btn" onclick="closeSheet()">✕</button>
-  </div>
-  <div class="sheet-content">
-    <div class="form-group">
-      <label>Etiqueta (Label)</label>
-      <input type="text" id="editLabel" oninput="updateNodeData('label', this.value)">
+  <div class="bottom-sheet" id="bottomSheet">
+    <div class="sheet-header">
+      <h2>Editar Nodo</h2>
+      <button class="btn" onclick="closeSheet()">✕</button>
     </div>
-    <div class="form-group">
-      <label>Tipo de Actividad</label>
-      <select id="editType" onchange="updateNodeType(this.value)">
-        <option value="signpost">Signpost (Inicio/Texto)</option>
-        <option value="flashcards">Flashcards</option>
-        <option value="memory">Memory Game</option>
-        <option value="quiz">Quiz</option>
-        <option value="response">Response (Dibujo/Texto)</option>
-        <option value="reflect">Reflect (Pregunta abierta)</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Signpost / Instrucción</label>
-      <textarea id="editSignpost" oninput="updateNodeData('signpost', this.value)"></textarea>
-    </div>
-    <div class="form-group" id="promptGroup" style="display:none;">
-      <label>Prompt (pregunta o instrucción específica)</label>
-      <textarea id="editPrompt" oninput="updateNodeData('prompt', this.value)" placeholder="Ej: Draw a cat / What is your favorite animal?"></textarea>
-    </div>
-    <div class="pairs-section" id="pairsSection" style="display:none;">
-      <h3>Términos y Definiciones <span class="count" id="pairsCount"></span></h3>
-      <div class="pairs-list" id="pairsList"></div>
-      <div class="pairs-actions">
-        <button class="btn btn-secondary" onclick="addPairRow()">＋ Agregar fila</button>
-        <button class="btn btn-secondary" onclick="openPasteModal()">📋 Pegar desde texto</button>
-        <button class="btn btn-secondary" onclick="document.getElementById('xlsxInput').click()">📊 Importar Excel</button>
-        <input type="file" id="xlsxInput" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
-      </div>
-    </div>
-  </div>
-  <div class="sheet-actions">
-    <button class="btn btn-danger" onclick="deleteSelectedNode()">Eliminar Nodo</button>
-    <button class="btn btn-primary" onclick="closeSheet()">Guardar y Cerrar</button>
-  </div>
-</div>
-
-<!-- Modal: Pegar TSV -->
-<div class="modal-overlay" id="pasteModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>Pegar desde texto</h3>
-      <button class="btn" onclick="closePasteModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <p>Pega aquí tus pares en formato <strong>término[TAB]definición</strong>, uno por línea.</p>
-      <textarea id="pasteArea" placeholder="cat&#9;meow&#10;dog&#9;woof"></textarea>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closePasteModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="applyPastedText()">Aplicar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Importar desde AoA -->
-<div class="modal-overlay" id="aoaModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>📥 Importar desde AoA Stage Weaver</h3>
-      <button class="btn" onclick="closeAoAModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <p>Pega aquí el JSON generado por <strong>"Lesson Planner → Deck.Toys"</strong> (modo "Recorrido AoA"). Se crearán 6 nodos conectados en línea con las fases READY → LEARN → PRACTICE → PERFORM → SHOW → THINK.</p>
+    <div class="sheet-content">
       <div class="form-group">
-        <label>Grado</label>
-        <select id="aoaGrade">
-          <option value="K">Kinder/PreK</option>
-          <option value="1">1st Grade</option>
-          <option value="2">2nd Grade</option>
-          <option value="3">3rd Grade</option>
-          <option value="4">4th Grade</option>
-          <option value="5">5th Grade</option>
-          <option value="6">6th Grade</option>
+        <label>Etiqueta (Label)</label>
+        <input type="text" id="editLabel" oninput="updateNodeData('label', this.value)">
+      </div>
+      <div class="form-group">
+        <label>Tipo de Actividad</label>
+        <select id="editType" onchange="updateNodeType(this.value)">
+          <option value="signpost">Signpost (Inicio/Texto)</option>
+          <option value="flashcards">Flashcards</option>
+          <option value="memory">Memory Game</option>
+          <option value="quiz">Quiz</option>
+          <option value="response">Response (Dibujo/Texto)</option>
+          <option value="reflect">Reflect (Pregunta abierta)</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Scenario (clave corta ej. "5" o nombre completo)</label>
-        <input type="text" id="aoaScenario" placeholder="Ej: 5 o Animals on the farm">
+        <label>Signpost / Instrucción</label>
+        <textarea id="editSignpost" oninput="updateNodeData('signpost', this.value)"></textarea>
       </div>
-      <div class="form-group">
-        <label>JSON de las 6 fases</label>
-        <textarea id="aoaJson" placeholder='{"READY":{"signpost":"..."},"LEARN":{"signpost":"...","pairs":[...]}...}'></textarea>
+      <div class="form-group" id="promptGroup" style="display:none;">
+        <label>Prompt (pregunta o instrucción específica)</label>
+        <textarea id="editPrompt" oninput="updateNodeData('prompt', this.value)" placeholder="Ej: Draw a cat / What is your favorite animal?"></textarea>
+      </div>
+      <div class="pairs-section" id="pairsSection" style="display:none;">
+        <h3>Términos y Definiciones <span class="count" id="pairsCount"></span></h3>
+        <div class="pairs-list" id="pairsList"></div>
+        <div class="pairs-actions">
+          <button class="btn btn-secondary" onclick="addPairRow()">＋ Agregar fila</button>
+          <button class="btn btn-secondary" onclick="openPasteModal()">📋 Pegar desde texto</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('xlsxInput').click()">📊 Importar Excel</button>
+          <input type="file" id="xlsxInput" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
+        </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeAoAModal()">Cancelar</button>
-      <button class="btn btn-success" onclick="applyAoAImport()">Importar</button>
+    <div class="sheet-actions">
+      <button class="btn btn-success" onclick="markAsStart()">🚩 Marcar como inicio</button>
+      <button class="btn btn-danger" onclick="deleteSelectedNode()">Eliminar Nodo</button>
+      <button class="btn btn-primary" onclick="closeSheet()">Guardar y Cerrar</button>
+    </div>
+  </div>
+
+  <!-- Modal: Pegar TSV -->
+  <div class="modal-overlay" id="pasteModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Pegar desde texto</h3>
+        <button class="btn" onclick="closePasteModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Pega aquí tus pares en formato <strong>término[TAB]definición</strong>, uno por línea.</p>
+        <textarea id="pasteArea" placeholder="cat&#9;meow&#10;dog&#9;woof"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closePasteModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="applyPastedText()">Aplicar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Importar desde AoA -->
+  <div class="modal-overlay" id="aoaModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>📥 Importar desde AoA Stage Weaver</h3>
+        <button class="btn" onclick="closeAoAModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Pega aquí el JSON generado por <strong>"Lesson Planner → Deck.Toys"</strong> (modo "Recorrido AoA"). Se crearán 6 nodos conectados en línea con las fases READY → LEARN → PRACTICE → PERFORM → SHOW → THINK.</p>
+        <div class="form-group">
+          <label>Grado</label>
+          <select id="aoaGrade">
+            <option value="K">Kinder/PreK</option>
+            <option value="1">1st Grade</option>
+            <option value="2">2nd Grade</option>
+            <option value="3">3rd Grade</option>
+            <option value="4">4th Grade</option>
+            <option value="5">5th Grade</option>
+            <option value="6">6th Grade</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Scenario (clave corta ej. "5" o nombre completo)</label>
+          <input type="text" id="aoaScenario" placeholder="Ej: 5 o Animals on the farm">
+        </div>
+        <div class="form-group">
+          <label>JSON de las 6 fases</label>
+          <textarea id="aoaJson" placeholder='{"READY":{"signpost":"..."},"LEARN":{"signpost":"...","pairs":[...]}...}'></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeAoAModal()">Cancelar</button>
+        <button class="btn btn-success" onclick="applyAoAImport()">Importar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Biblioteca de fondos -->
+  <div class="modal-overlay" id="backgroundsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>🖼️ Biblioteca de Fondos</h3>
+        <button class="btn" onclick="closeBackgroundsModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Selecciona un fondo para el canvas. Los fondos se guardan localmente en este dispositivo.</p>
+        <div class="bg-grid" id="bgGrid"></div>
+        <button class="btn btn-secondary" style="width:100%;padding:12px;" onclick="document.getElementById('bgFileInput').click()">＋ Agregar fondo nuevo</button>
+        <input type="file" id="bgFileInput" accept="image/*" style="display:none" onchange="addBackground(this)">
+        <button class="btn" style="width:100%;padding:10px;margin-top:8px;" onclick="clearBackground()">Quitar fondo actual</button>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Modal: Biblioteca de fondos -->
-<div class="modal-overlay" id="backgroundsModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>🖼️ Biblioteca de Fondos</h3>
-      <button class="btn" onclick="closeBackgroundsModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <p>Selecciona un fondo para el canvas. Los fondos se guardan localmente en este dispositivo.</p>
-      <div class="bg-grid" id="bgGrid"></div>
-      <button class="btn btn-secondary" style="width:100%;padding:12px;" onclick="document.getElementById('bgFileInput').click()">＋ Agregar fondo nuevo</button>
-      <input type="file" id="bgFileInput" accept="image/*" style="display:none" onchange="addBackground(this)">
-      <button class="btn" style="width:100%;padding:10px;margin-top:8px;" onclick="clearBackground()">Quitar fondo actual</button>
-    </div>
+<!-- PLAYER MODE -->
+<div class="player-mode" id="playerMode">
+  <div class="player-top-bar">
+    <button onclick="exitPlayer()">✕ Salir</button>
+    <div class="player-progress" id="playerProgress">0 / 0</div>
+  </div>
+  <div class="player-screen" id="playerScreen">
+    <div class="player-overlay" style="display:none;"></div>
+    <div class="player-content" id="playerContent"></div>
   </div>
 </div>
 
@@ -332,7 +437,7 @@ const DEFAULT_BG_SLOTS = [
 ];
 
 const DEFAULT_DATA = {
-  meta: { backgroundId: null },
+  meta: { backgroundId: null, startNodeId: null },
   nodes: [
     { id: 'n1', label: 'READY', type: 'signpost', x: 100, y: 100, width: 130, height: 80, color: '#d97706', icon: '🚀', signpost: '¡Bienvenido! Toca Start.' },
     { id: 'n2', label: 'LEARN', type: 'flashcards', x: 300, y: 100, width: 130, height: 80, color: '#2563eb', icon: '📚', signpost: 'Escucha y repite.', pairs: [{a:'cat',b:'meow'},{a:'dog',b:'woof'}] }
@@ -340,34 +445,39 @@ const DEFAULT_DATA = {
   edges: [ { id: 'e1', from: 'n1', to: 'n2' } ]
 };
 
-let state = { meta: { backgroundId: null }, nodes: [], edges: [], selectedNodeId: null, mode: 'default', connectingFrom: null };
-let backgrounds = []; // {id, label, dataUrl}
+let state = { meta: { backgroundId: null, startNodeId: null }, nodes: [], edges: [], selectedNodeId: null, mode: 'default', connectingFrom: null };
+let backgrounds = [];
 let isDragging = false, dragNodeId = null, dragOffsetX = 0, dragOffsetY = 0;
 let dragStartX = 0, dragStartY = 0;
 const DRAG_THRESHOLD = 10;
 
+// Player state
+let playerState = {
+  navigationStack: [],
+  visitedSet: new Set(),
+  currentNodeId: null,
+  activityState: {}
+};
+
 // --- 2. INIT & PERSISTENCE ---
 function init() {
-  // Cargar biblioteca de fondos
   const savedBg = localStorage.getItem('recorrido_backgrounds');
   if (savedBg) {
     try { backgrounds = JSON.parse(savedBg); } catch(e) { backgrounds = []; }
   }
-  // Asegurar que todos los slots por defecto existan (aunque estén vacíos)
   DEFAULT_BG_SLOTS.forEach(slot => {
     if (!backgrounds.find(b => b.id === slot.id)) {
       backgrounds.push({ id: slot.id, label: slot.label, dataUrl: null });
     }
   });
 
-  // Cargar state del mapa
   const saved = localStorage.getItem('recorrido_draft');
   if (saved) {
     try {
       state = JSON.parse(saved);
-      // Compatibilidad hacia atrás: asegurar que exista meta
-      if (!state.meta) state.meta = { backgroundId: null };
+      if (!state.meta) state.meta = { backgroundId: null, startNodeId: null };
       if (state.meta.backgroundId === undefined) state.meta.backgroundId = null;
+      if (state.meta.startNodeId === undefined) state.meta.startNodeId = null;
     } catch(e) {
       state = JSON.parse(JSON.stringify(DEFAULT_DATA));
     }
@@ -440,7 +550,8 @@ function render() {
 
   state.nodes.forEach(node => {
     const el = document.createElement('div');
-    el.className = `node ${state.selectedNodeId === node.id ? 'selected' : ''}`;
+    const isStart = state.meta.startNodeId === node.id;
+    el.className = `node ${state.selectedNodeId === node.id ? 'selected' : ''} ${isStart ? 'start-node' : ''}`;
     el.style.left = node.x + 'px';
     el.style.top = node.y + 'px';
     el.style.width = node.width + 'px';
@@ -501,7 +612,6 @@ function onPointerMove(e) {
     node.x = Math.max(0, Math.round(newX / 10) * 10);
     node.y = Math.max(0, Math.round(newY / 10) * 10);
 
-    // Actualización in-place
     el.style.left = node.x + 'px';
     el.style.top = node.y + 'px';
     updateEdgesForNode(node.id);
@@ -623,14 +733,25 @@ function deleteSelectedNode() {
   if (!confirm('¿Eliminar este nodo y sus conexiones?')) return;
   state.nodes = state.nodes.filter(n => n.id !== state.selectedNodeId);
   state.edges = state.edges.filter(e => e.from !== state.selectedNodeId && e.to !== state.selectedNodeId);
+  if (state.meta.startNodeId === state.selectedNodeId) {
+    state.meta.startNodeId = null;
+  }
   state.selectedNodeId = null;
   closeSheet();
   saveState();
   render();
 }
 
+function markAsStart() {
+  if (!state.selectedNodeId) return;
+  state.meta.startNodeId = state.selectedNodeId;
+  saveState();
+  render();
+  showToast('Nodo marcado como inicio');
+}
+
 function openSheet(nodeId) {
-  state.selectedNodeId = nodeId; // Sincronizar estado explícito
+  state.selectedNodeId = nodeId;
   const node = state.nodes.find(n => n.id === nodeId);
   if (!node) return;
   document.getElementById('editLabel').value = node.label;
@@ -862,8 +983,9 @@ function importJSON(input) {
       if (imported.nodes && imported.edges) {
         state.nodes = imported.nodes;
         state.edges = imported.edges;
-        state.meta = imported.meta || { backgroundId: null };
+        state.meta = imported.meta || { backgroundId: null, startNodeId: null };
         if (state.meta.backgroundId === undefined) state.meta.backgroundId = null;
+        if (state.meta.startNodeId === undefined) state.meta.startNodeId = null;
         state.selectedNodeId = null;
         state.mode = 'default';
         saveState();
@@ -911,14 +1033,12 @@ function applyAoAImport() {
     return;
   }
 
-  // Validar que tenga al menos una de las fases
   const hasAnyPhase = AOA_PHASES.some(p => aoaData[p]);
   if (!hasAnyPhase) {
     alert('El JSON debe contener al menos una de las fases: ' + AOA_PHASES.join(', '));
     return;
   }
 
-  // Decidir si reemplazar o agregar
   let startX = 100, startY = 100;
   if (state.nodes.length > 0) {
     const replace = confirm('¿Reemplazar el mapa actual con las 6 fases de AoA?\n\nOK = Reemplazar\nCancelar = Agregar los 6 nodos aparte (sin borrar los existentes)');
@@ -926,15 +1046,14 @@ function applyAoAImport() {
       state.nodes = [];
       state.edges = [];
       state.meta.backgroundId = null;
+      state.meta.startNodeId = null;
     } else {
-      // Calcular posición inicial a la derecha de los nodos existentes
       const maxX = Math.max(...state.nodes.map(n => n.x + n.width));
       startX = maxX + 200;
       startY = 100;
     }
   }
 
-  // Generar los 6 nodos
   const newNodes = [];
   const newEdges = [];
   AOA_PHASES.forEach((phase, idx) => {
@@ -956,7 +1075,6 @@ function applyAoAImport() {
       prompt: phaseData.prompt || ''
     };
 
-    // Agregar pairs si existen (LEARN, PRACTICE, PERFORM)
     if (Array.isArray(phaseData.pairs) && phaseData.pairs.length > 0) {
       node.pairs = phaseData.pairs.map(p => ({ a: String(p.a || ''), b: String(p.b || '') }));
     }
@@ -964,7 +1082,6 @@ function applyAoAImport() {
     newNodes.push(node);
   });
 
-  // Conectar en línea: READY→LEARN→PRACTICE→PERFORM→SHOW→THINK
   for (let i = 0; i < newNodes.length - 1; i++) {
     newEdges.push({
       id: 'aoa_e_' + i + '_' + Date.now(),
@@ -976,7 +1093,10 @@ function applyAoAImport() {
   state.nodes = state.nodes.concat(newNodes);
   state.edges = state.edges.concat(newEdges);
 
-  // Intentar asignar fondo automáticamente según Grade + Scenario
+  if (newNodes.length > 0 && !state.meta.startNodeId) {
+    state.meta.startNodeId = newNodes[0].id;
+  }
+
   if (scenarioInput) {
     const bgId = resolveScenarioBackground(grade, scenarioInput);
     if (bgId) {
@@ -994,11 +1114,9 @@ function applyAoAImport() {
 }
 
 function resolveScenarioBackground(grade, scenarioInput) {
-  // Intent 1: match directo con la clave "Grade-Scenario"
   const directKey = grade + '-' + scenarioInput;
   if (SCENARIO_BG_MAP[directKey]) return SCENARIO_BG_MAP[directKey];
 
-  // Intent 2: extraer número del input (ej: "5" de "Scenario 5" o "K-5")
   const numMatch = scenarioInput.match(/(\d+)/);
   if (numMatch) {
     const num = numMatch[1];
@@ -1095,22 +1213,24 @@ function clearBackground() {
 }
 
 function deleteBackground(bgId) {
-  if (!confirm('¿Eliminar esta imagen de la biblioteca?')) return;
   const bg = backgrounds.find(b => b.id === bgId);
   if (!bg) return;
 
-  if (state.meta.backgroundId === bgId) {
-    state.meta.backgroundId = null;
-    applyBackground();
-  }
-
-  const isCustomSlot = bgId.startsWith('bg_custom_');
-  if (isCustomSlot) {
-    // Los 12 slots fijos siempre existen (aunque queden vacíos); un fondo
-    // personalizado agregado por el docente no debe dejar un slot fantasma.
+  // Fondos personalizados (bg_custom_*) se eliminan completamente
+  if (bgId.startsWith('bg_custom_')) {
+    if (!confirm('¿Eliminar este fondo personalizado de la biblioteca?')) return;
     backgrounds = backgrounds.filter(b => b.id !== bgId);
+    if (state.meta.backgroundId === bgId) {
+      state.meta.backgroundId = null;
+      applyBackground();
+    }
   } else {
+    // Slots fijos solo se vacían
     bg.dataUrl = null;
+    if (state.meta.backgroundId === bgId) {
+      state.meta.backgroundId = null;
+      applyBackground();
+    }
   }
 
   saveBackgrounds();
@@ -1135,16 +1255,13 @@ function addBackground(input) {
   const file = input.files[0];
   if (!file) return;
 
-  // Crear un nuevo slot con id único
   const newId = 'bg_custom_' + Date.now();
   const label = prompt('Nombre para este fondo:', file.name.replace(/\.[^.]+$/, '')) || 'Fondo personalizado';
 
-  // Agregar el slot vacío primero
   backgrounds.push({ id: newId, label: label, dataUrl: null });
   saveBackgrounds();
   renderBackgroundsGrid();
 
-  // Procesar la imagen
   processAndSaveBackground(file, newId);
   input.value = '';
 }
@@ -1205,7 +1322,6 @@ function applyBackground() {
       return;
     }
   }
-  // Sin fondo: restaurar patrón de puntos (se controla desde el container)
   canvasContent.style.backgroundImage = '';
 }
 
@@ -1223,6 +1339,444 @@ document.getElementById('canvas-container').addEventListener('pointerdown', (e) 
     render();
   }
 });
+
+// ===== PLAYER MODE =====
+function startPlayer() {
+  // Determinar nodo de inicio
+  let startNodeId = state.meta.startNodeId;
+
+  if (!startNodeId) {
+    // Auto-detectar: buscar nodos sin aristas entrantes
+    const nodesWithoutIncoming = state.nodes.filter(node => {
+      return !state.edges.some(e => e.to === node.id);
+    });
+
+    if (nodesWithoutIncoming.length === 1) {
+      startNodeId = nodesWithoutIncoming[0].id;
+    } else if (nodesWithoutIncoming.length === 0) {
+      alert('No se encontró un nodo de inicio. Por favor, marca un nodo como inicio usando el botón 🚩 en el panel de edición.');
+      return;
+    } else {
+      alert(`Hay ${nodesWithoutIncoming.length} nodos sin conexiones entrantes. Por favor, marca uno como inicio usando el botón 🚩 en el panel de edición.`);
+      return;
+    }
+  }
+
+  // Inicializar estado del jugador
+  playerState = {
+    navigationStack: [startNodeId],
+    visitedSet: new Set([startNodeId]),
+    currentNodeId: startNodeId,
+    activityState: {}
+  };
+
+  // Mostrar modo jugador
+  document.getElementById('editorMode').style.display = 'none';
+  document.getElementById('playerMode').classList.add('active');
+
+  renderPlayerScreen();
+}
+
+function exitPlayer() {
+  document.getElementById('playerMode').classList.remove('active');
+  document.getElementById('editorMode').style.display = 'flex';
+  playerState = {
+    navigationStack: [],
+    visitedSet: new Set(),
+    currentNodeId: null,
+    activityState: {}
+  };
+}
+
+function renderPlayerScreen() {
+  const node = state.nodes.find(n => n.id === playerState.currentNodeId);
+  if (!node) return;
+
+  const screen = document.getElementById('playerScreen');
+  const content = document.getElementById('playerContent');
+  const progressEl = document.getElementById('playerProgress');
+
+  // Actualizar progreso
+  progressEl.textContent = `${playerState.visitedSet.size} / ${state.nodes.length}`;
+
+  // Configurar fondo
+  const hasBg = state.meta && state.meta.backgroundId;
+  let bgDataUrl = null;
+  if (hasBg) {
+    const bg = backgrounds.find(b => b.id === state.meta.backgroundId);
+    if (bg && bg.dataUrl) {
+      bgDataUrl = bg.dataUrl;
+    }
+  }
+
+  if (bgDataUrl) {
+    screen.classList.add('has-bg');
+    screen.style.backgroundImage = `url(${bgDataUrl})`;
+    screen.querySelector('.player-overlay').style.display = 'block';
+  } else {
+    screen.classList.remove('has-bg');
+    screen.style.backgroundImage = '';
+    screen.style.background = node.color;
+    screen.querySelector('.player-overlay').style.display = 'none';
+  }
+
+  // Construir contenido
+  let html = `<div class="player-gesture">${node.icon}</div>`;
+  html += `<h1 class="player-title">${node.label}</h1>`;
+  if (node.signpost) {
+    html += `<div class="player-signpost">${node.signpost}</div>`;
+  }
+
+  content.innerHTML = html;
+
+  // Renderizar actividad según tipo
+  const activityWrap = document.createElement('div');
+  content.appendChild(activityWrap);
+
+  if (node.type === 'signpost') {
+    // El botón se agrega más abajo, en el bloque de navegación unificado
+    // (antes estaba fijo aquí como "Start →" llamando a playerNext() sin
+    // pasar por la lógica de 0/1/2+ aristas — rompía con signposts que
+    // bifurcan o que no son el primer nodo del recorrido).
+  } else if (node.type === 'flashcards') {
+    renderPlayerFlashcards(activityWrap, node);
+  } else if (node.type === 'memory') {
+    renderPlayerMemory(activityWrap, node);
+  } else if (node.type === 'quiz') {
+    renderPlayerQuiz(activityWrap, node);
+  } else if (node.type === 'response') {
+    renderPlayerResponse(activityWrap, node);
+  } else if (node.type === 'reflect') {
+    renderPlayerReflect(activityWrap, node);
+  }
+
+  // Navegación unificada para TODOS los tipos, incluido signpost
+  {
+    const navRow = document.createElement('div');
+    navRow.className = 'player-nav-row';
+    navRow.style.marginTop = '18px';
+
+    const canGoBack = playerState.navigationStack.length > 1;
+    if (canGoBack) {
+      navRow.innerHTML += `<button class="player-btn" onclick="playerBack()">← Back</button>`;
+    }
+
+    const outgoingEdges = state.edges.filter(e => e.from === node.id);
+    if (outgoingEdges.length === 0) {
+      navRow.innerHTML += `<button class="player-btn" onclick="playerFinish()">Finish 🎉</button>`;
+    } else if (outgoingEdges.length === 1) {
+      const label = (node.type === 'signpost' && !canGoBack) ? 'Start →' : 'Continue →';
+      navRow.innerHTML += `<button class="player-btn" onclick="playerNext()">${label}</button>`;
+    } else {
+      navRow.innerHTML = `<div style="width:100%;"><p style="margin-bottom:12px;color:#fff;">Choose your path:</p>`;
+      outgoingEdges.forEach(edge => {
+        const targetNode = state.nodes.find(n => n.id === edge.to);
+        const label = edge.label || (targetNode ? targetNode.label : 'Continue');
+        navRow.innerHTML += `<button class="player-btn-choice" onclick="playerChooseEdge('${edge.id}')">${label}</button>`;
+      });
+      navRow.innerHTML += `</div>`;
+    }
+
+    content.appendChild(navRow);
+  }
+}
+
+function playerNext() {
+  const node = state.nodes.find(n => n.id === playerState.currentNodeId);
+  if (!node) return;
+
+  const outgoingEdges = state.edges.filter(e => e.from === node.id);
+  if (outgoingEdges.length === 1) {
+    const nextNodeId = outgoingEdges[0].to;
+    playerState.navigationStack.push(nextNodeId);
+    playerState.visitedSet.add(nextNodeId);
+    playerState.currentNodeId = nextNodeId;
+    playerState.activityState = {};
+    renderPlayerScreen();
+  }
+}
+
+function playerBack() {
+  if (playerState.navigationStack.length > 1) {
+    playerState.navigationStack.pop();
+    playerState.currentNodeId = playerState.navigationStack[playerState.navigationStack.length - 1];
+    playerState.activityState = {};
+    renderPlayerScreen();
+  }
+}
+
+function playerChooseEdge(edgeId) {
+  const edge = state.edges.find(e => e.id === edgeId);
+  if (!edge) return;
+
+  playerState.navigationStack.push(edge.to);
+  playerState.visitedSet.add(edge.to);
+  playerState.currentNodeId = edge.to;
+  playerState.activityState = {};
+  renderPlayerScreen();
+}
+
+function playerFinish() {
+  const content = document.getElementById('playerContent');
+  content.innerHTML = `
+    <div class="player-gesture">🎉</div>
+    <h1 class="player-title">Great job!</h1>
+    <div class="player-signpost">You finished the journey.</div>
+    <div class="player-nav-row">
+      <button class="player-btn" onclick="playerRestart()">Play again</button>
+    </div>
+  `;
+}
+
+function playerRestart() {
+  const startNodeId = state.meta.startNodeId || playerState.navigationStack[0];
+  playerState = {
+    navigationStack: [startNodeId],
+    visitedSet: new Set([startNodeId]),
+    currentNodeId: startNodeId,
+    activityState: {}
+  };
+  renderPlayerScreen();
+}
+
+// Player activity renderers
+function renderPlayerFlashcards(wrap, node) {
+  if (!node.pairs || node.pairs.length === 0) {
+    wrap.innerHTML = '<p style="color:#fff;">No pairs defined for this activity.</p>';
+    return;
+  }
+
+  if (playerState.activityState.fc === undefined) playerState.activityState.fc = 0;
+  const pair = node.pairs[playerState.activityState.fc] || {a:'—', b:'—'};
+
+  wrap.innerHTML = `
+    <div class="player-card-area" id="playerFcCard" onclick="playerFlipCard()">${pair.a}</div>
+    <div class="player-progress-text">${playerState.activityState.fc + 1} / ${node.pairs.length} — tap the card to flip</div>
+    <div class="player-nav-row">
+      <button class="player-btn" onclick="playerFcPrev()" ${playerState.activityState.fc === 0 ? 'disabled' : ''}>‹</button>
+      <button class="player-btn" onclick="playerFcNext()" ${playerState.activityState.fc === node.pairs.length - 1 ? 'disabled' : ''}>›</button>
+    </div>
+  `;
+  playerState.activityState.fcFlipped = false;
+}
+
+function playerFlipCard() {
+  const node = state.nodes.find(n => n.id === playerState.currentNodeId);
+  if (!node || !node.pairs) return;
+  const pair = node.pairs[playerState.activityState.fc];
+  const el = document.getElementById('playerFcCard');
+  playerState.activityState.fcFlipped = !playerState.activityState.fcFlipped;
+  el.textContent = playerState.activityState.fcFlipped ? pair.b : pair.a;
+}
+
+function playerFcNext() {
+  const node = state.nodes.find(n => n.id === playerState.currentNodeId);
+  if (!node || !node.pairs) return;
+  if (playerState.activityState.fc < node.pairs.length - 1) {
+    playerState.activityState.fc++;
+    renderPlayerScreen();
+  }
+}
+
+function playerFcPrev() {
+  if (playerState.activityState.fc > 0) {
+    playerState.activityState.fc--;
+    renderPlayerScreen();
+  }
+}
+
+function renderPlayerMemory(wrap, node) {
+  if (!node.pairs || node.pairs.length === 0) {
+    wrap.innerHTML = '<p style="color:#fff;">No pairs defined for this activity.</p>';
+    return;
+  }
+
+  if (!playerState.activityState.memCards) {
+    const cards = [];
+    node.pairs.forEach((p, idx) => {
+      cards.push({id: idx + 'a', pairIdx: idx, text: p.a});
+      cards.push({id: idx + 'b', pairIdx: idx, text: p.b});
+    });
+    playerState.activityState.memCards = shuffle(cards);
+    playerState.activityState.memFlipped = [];
+    playerState.activityState.memMatched = [];
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'player-memory-grid';
+
+  playerState.activityState.memCards.forEach(c => {
+    const flipped = playerState.activityState.memFlipped.indexOf(c.id) !== -1;
+    const matched = playerState.activityState.memMatched.indexOf(c.pairIdx) !== -1;
+    const div = document.createElement('div');
+    div.className = 'player-memory-card' + (matched ? ' matched' : (flipped ? ' flipped' : ''));
+    div.textContent = (flipped || matched) ? c.text : '?';
+    if (!matched) {
+      div.onclick = (function(cardId) {
+        return function() { playerMemoryClick(cardId); };
+      })(c.id);
+    }
+    grid.appendChild(div);
+  });
+
+  wrap.appendChild(grid);
+  wrap.insertAdjacentHTML('beforeend', `<div class="player-progress-text">Matches: ${playerState.activityState.memMatched.length} / ${node.pairs.length}</div>`);
+}
+
+function playerMemoryClick(id) {
+  if (playerState.activityState.memFlipped.indexOf(id) !== -1) return;
+  if (playerState.activityState.memFlipped.length >= 2) return;
+
+  playerState.activityState.memFlipped.push(id);
+  renderPlayerScreen();
+
+  if (playerState.activityState.memFlipped.length === 2) {
+    const c1 = playerState.activityState.memCards.filter(c => c.id === playerState.activityState.memFlipped[0])[0];
+    const c2 = playerState.activityState.memCards.filter(c => c.id === playerState.activityState.memFlipped[1])[0];
+
+    if (c1.pairIdx === c2.pairIdx) {
+      playerState.activityState.memMatched.push(c1.pairIdx);
+      playerState.activityState.memFlipped = [];
+      setTimeout(renderPlayerScreen, 500);
+    } else {
+      setTimeout(function() {
+        playerState.activityState.memFlipped = [];
+        renderPlayerScreen();
+      }, 900);
+    }
+  }
+}
+
+function renderPlayerQuiz(wrap, node) {
+  if (!node.pairs || node.pairs.length === 0) {
+    wrap.innerHTML = '<p style="color:#fff;">No pairs defined for this activity.</p>';
+    return;
+  }
+
+  if (playerState.activityState.quizIdx === undefined) {
+    playerState.activityState.quizIdx = 0;
+    playerState.activityState.quizScore = 0;
+    playerState.activityState.quizAnswered = false;
+  }
+
+  const pairs = node.pairs;
+  const current = pairs[playerState.activityState.quizIdx];
+  const distractors = shuffle(pairs.filter(p => p !== current)).slice(0, 3).map(p => p.a);
+  const options = shuffle([current.a].concat(distractors));
+
+  wrap.innerHTML = `<div class="player-card-area" style="margin-bottom:14px;">${current.b}</div>`;
+
+  const optWrap = document.createElement('div');
+  optWrap.className = 'player-quiz-options';
+
+  options.forEach(opt => {
+    const div = document.createElement('div');
+    div.className = 'player-quiz-opt';
+    div.textContent = opt;
+    div.onclick = function() { playerQuizAnswer(opt, current.a, div, optWrap); };
+    optWrap.appendChild(div);
+  });
+
+  wrap.appendChild(optWrap);
+  wrap.insertAdjacentHTML('beforeend', `<div class="player-progress-text">Question ${playerState.activityState.quizIdx + 1} / ${pairs.length} — Score: ${playerState.activityState.quizScore}</div>`);
+}
+
+function playerQuizAnswer(chosen, correct, el, optWrap) {
+  if (playerState.activityState.quizAnswered) return;
+  playerState.activityState.quizAnswered = true;
+
+  Array.prototype.forEach.call(optWrap.children, function(c) {
+    if (c.textContent === correct) c.classList.add('correct');
+    else if (c === el) c.classList.add('wrong');
+  });
+
+  if (chosen === correct) playerState.activityState.quizScore++;
+
+  setTimeout(function() {
+    const node = state.nodes.find(n => n.id === playerState.currentNodeId);
+    if (!node || !node.pairs) return;
+    playerState.activityState.quizAnswered = false;
+    if (playerState.activityState.quizIdx < node.pairs.length - 1) {
+      playerState.activityState.quizIdx++;
+    }
+    renderPlayerScreen();
+  }, 900);
+}
+
+function renderPlayerResponse(wrap, node) {
+  const swatches = ['#ffffff', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#111111'];
+  wrap.innerHTML = `
+    <canvas id="playerDrawPad" width="300" height="200"></canvas>
+    <div class="player-palette">${swatches.map(c => `<div class="player-swatch" style="background:${c}" onclick="playerSetColor('${c}')"></div>`).join('')}</div>
+    <button class="player-btn" onclick="playerClearPad()" style="margin-bottom:10px;">Clear</button>
+    ${node.prompt ? `<textarea class="player-response-text" placeholder="${node.prompt.replace(/"/g, '&quot;')}"></textarea>` : ''}
+  `;
+  setTimeout(playerInitPad, 30);
+}
+
+let playerDrawing = false, playerPenColor = '#111111';
+
+function playerSetColor(c) {
+  playerPenColor = c;
+}
+
+function playerInitPad() {
+  const c = document.getElementById('playerDrawPad');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  function pos(e) {
+    const r = c.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  }
+
+  function start(e) { playerDrawing = true; playerDraw(e); }
+  function end() { playerDrawing = false; ctx.beginPath(); }
+  function draw(e) {
+    if (!playerDrawing) return;
+    e.preventDefault();
+    const p = pos(e);
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = playerPenColor;
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+  }
+
+  c.addEventListener('mousedown', start);
+  c.addEventListener('mouseup', end);
+  c.addEventListener('mousemove', draw);
+  c.addEventListener('touchstart', start);
+  c.addEventListener('touchend', end);
+  c.addEventListener('touchmove', draw);
+}
+
+function playerClearPad() {
+  const c = document.getElementById('playerDrawPad');
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, c.width, c.height);
+}
+
+function renderPlayerReflect(wrap, node) {
+  wrap.innerHTML = `<textarea class="player-response-text" placeholder="Type your answer..."></textarea>`;
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = a[i];
+    a[i] = a[j];
+    a[j] = t;
+  }
+  return a;
+}
 
 // Start
 init();
