@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recorrido Editor (Checkpoint 6)</title>
+<title>Recorrido Editor (Checkpoint 7 - Zoom)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #f1f5f9; }
 
-/* Top Bar */
 .top-bar { min-height: 56px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; z-index: 50; flex-shrink: 0; gap: 8px; flex-wrap: wrap; }
 .top-bar h1 { font-size: 1rem; font-weight: 700; color: #0f172a; }
 .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -20,56 +19,39 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
 .btn-secondary { background: #e2e8f0; color: #334155; border-color: #cbd5e1; }
 .btn-success { background: #16a34a; color: #fff; border-color: #16a34a; }
 
-/* Canvas Area */
 #canvas-container { flex: 1; overflow: auto; position: relative; touch-action: pan-x pan-y; background-color: #f8fafc; background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px); background-size: 24px 24px; }
-#canvas-content { width: 2000px; height: 2000px; position: relative; background-size: 2000px auto; background-position: top center; background-repeat: no-repeat; }
-
-/* SVG Layer for Lines */
+#canvas-content { width: 2000px; height: 2000px; position: relative; background-size: 2000px auto; background-position: center; background-repeat: no-repeat; transform-origin: top left; }
 #lines-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 
-/* Nodes */
-.node {
-  position: absolute; width: 130px; min-height: 80px; border-radius: 12px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  color: #fff; font-weight: 700; font-size: 0.9rem; text-align: center; padding: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: grab; z-index: 2;
-  border: 3px solid transparent; transition: border-color 0.2s;
-  touch-action: none;
-}
+.node { position: absolute; width: 130px; min-height: 80px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 0.9rem; text-align: center; padding: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: grab; z-index: 2; border: 3px solid transparent; transition: border-color 0.2s; touch-action: none; }
 .node.selected { border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.5); }
 .node.start-node { border-color: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.4); }
 .node .icon { font-size: 1.8rem; margin-bottom: 4px; pointer-events: none; }
 .node .label { pointer-events: none; line-height: 1.2; }
 
-/* Floating Action Buttons */
 .fab-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 12px; z-index: 40; }
 .fab { width: 56px; height: 56px; border-radius: 50%; background: #2563eb; color: #fff; border: none; font-size: 1.5rem; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .fab:active { transform: scale(0.95); }
 .fab-connect { background: #0d9488; display: none; }
 .fab-connect.active { display: flex; animation: pulse 1.5s infinite; }
 
-/* Bottom Sheet */
-.bottom-sheet {
-  position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
-  border-radius: 20px 20px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
-  transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 100; max-height: 85vh; display: flex; flex-direction: column;
-}
+.zoom-controls { position: fixed; bottom: 24px; left: 24px; z-index: 40; display: flex; align-items: center; gap: 4px; background: #fff; border-radius: 24px; padding: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.zoom-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: #f1f5f9; color: #334155; font-size: 1.2rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.zoom-btn:active { background: #e2e8f0; }
+.zoom-label { font-size: 0.85rem; font-weight: 600; color: #334155; min-width: 40px; text-align: center; }
+
+.bottom-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.15); transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; max-height: 85vh; display: flex; flex-direction: column; }
 .bottom-sheet.open { transform: translateY(0); }
 .sheet-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .sheet-header h2 { font-size: 1.1rem; color: #0f172a; }
 .sheet-content { padding: 20px; overflow-y: auto; flex: 1; }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
-.form-group input, .form-group select, .form-group textarea {
-  width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px;
-  font-size: 1rem; font-family: inherit; background: #f8fafc;
-}
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; font-family: inherit; background: #f8fafc; }
 .form-group textarea { min-height: 80px; resize: vertical; }
 .sheet-actions { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
 .sheet-actions .btn { flex: 1; padding: 12px; font-size: 1rem; min-width: 120px; }
 
-/* Pairs Editor */
 .pairs-section { margin-top: 20px; padding-top: 16px; border-top: 2px dashed #e2e8f0; }
 .pairs-section h3 { font-size: 0.95rem; color: #0f172a; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
 .pairs-section h3 .count { font-size: 0.8rem; color: #64748b; font-weight: 500; }
@@ -81,17 +63,9 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
 .pairs-actions { display: flex; flex-direction: column; gap: 8px; }
 .pairs-actions .btn { width: 100%; padding: 10px; font-size: 0.9rem; }
 
-/* Modal */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150;
-  display: none; align-items: center; justify-content: center; padding: 16px;
-}
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; display: none; align-items: center; justify-content: center; padding: 16px; }
 .modal-overlay.open { display: flex; }
-.modal {
-  background: #fff; border-radius: 16px; width: 100%; max-width: 560px;
-  max-height: 90vh; display: flex; flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-}
+.modal { background: #fff; border-radius: 16px; width: 100%; max-width: 560px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
 .modal-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .modal-header h3 { font-size: 1rem; color: #0f172a; }
 .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
@@ -100,127 +74,66 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
 .modal-footer { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; flex-shrink: 0; }
 .modal-footer .btn { flex: 1; padding: 12px; font-size: 0.95rem; }
 
-/* Backgrounds Grid */
 .bg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.bg-slot {
-  border: 2px solid #e2e8f0; border-radius: 10px; overflow: hidden;
-  display: flex; flex-direction: column; background: #f8fafc;
-}
+.bg-slot { border: 2px solid #e2e8f0; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; background: #f8fafc; }
 .bg-slot.has-image { border-color: #94a3b8; }
 .bg-slot.active { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3); }
-.bg-thumb {
-  width: 100%; aspect-ratio: 16/10; background: #e2e8f0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 2rem; color: #94a3b8; overflow: hidden;
-}
+.bg-thumb { width: 100%; aspect-ratio: 16/10; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #94a3b8; overflow: hidden; }
 .bg-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .bg-label { padding: 6px 8px; font-size: 0.72rem; font-weight: 600; color: #334155; text-align: center; line-height: 1.2; }
 .bg-actions { display: flex; gap: 4px; padding: 0 6px 6px; }
 .bg-actions .btn { flex: 1; padding: 6px 4px; font-size: 0.7rem; }
 
-/* Toast */
-.toast {
-  position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px);
-  background: #0f172a; color: #fff; padding: 10px 20px; border-radius: 24px;
-  font-size: 0.9rem; font-weight: 600; opacity: 0; pointer-events: none;
-  transition: all 0.3s ease; z-index: 200; white-space: nowrap; max-width: 90vw;
-}
+.toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #0f172a; color: #fff; padding: 10px 20px; border-radius: 24px; font-size: 0.9rem; font-weight: 600; opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 200; white-space: nowrap; max-width: 90vw; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ===== PLAYER MODE STYLES ===== */
 .player-mode { display: none; position: fixed; inset: 0; z-index: 500; flex-direction: column; }
 .player-mode.active { display: flex; }
-.player-screen {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center; padding: 24px; color: #fff; position: relative; overflow-y: auto;
-}
+.player-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; color: #fff; position: relative; overflow-y: auto; }
 .player-screen.has-bg { background-size: cover; background-position: center; background-repeat: no-repeat; }
-.player-screen.has-bg .player-overlay {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.3); z-index: 0;
-}
+.player-screen.has-bg .player-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.3); z-index: 0; }
 .player-screen.has-bg .player-content { position: relative; z-index: 1; width: 100%; }
 .player-screen:not(.has-bg) { transition: background 0.3s; }
 .player-screen:not(.has-bg) .player-content { width: 100%; }
 
-.player-top-bar {
-  position: fixed; top: 0; left: 0; right: 0; padding: 12px 16px;
-  display: flex; justify-content: space-between; align-items: center; z-index: 10;
-  background: rgba(0,0,0,0.2); backdrop-filter: blur(8px);
-}
-.player-top-bar button {
-  background: rgba(255,255,255,0.9); border: none; padding: 8px 14px; border-radius: 20px;
-  font-size: 0.85rem; font-weight: 600; cursor: pointer;
-}
+.player-top-bar { position: fixed; top: 0; left: 0; right: 0; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 10; background: rgba(0,0,0,0.2); backdrop-filter: blur(8px); }
+.player-top-bar button { background: rgba(255,255,255,0.9); border: none; padding: 8px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
 .player-progress { color: #fff; font-size: 0.85rem; font-weight: 600; }
 
 .player-gesture { font-size: 4rem; margin-bottom: 8px; }
 .player-title { font-size: 2rem; letter-spacing: 2px; margin: 6px 0 14px; font-weight: 700; }
-.player-signpost {
-  font-size: 1.1rem; max-width: 640px; margin: 0 auto 22px;
-  background: rgba(255,255,255,0.15); padding: 14px 18px; border-radius: 12px;
-  backdrop-filter: blur(4px);
-}
+.player-signpost { font-size: 1.1rem; max-width: 640px; margin: 0 auto 22px; background: rgba(255,255,255,0.15); padding: 14px 18px; border-radius: 12px; backdrop-filter: blur(4px); }
 
-.player-card-area {
-  background: #fff; color: #222; border-radius: 16px; padding: 24px;
-  max-width: 480px; width: 100%; min-height: 160px; margin: 0 auto;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: 1.35rem; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-}
+.player-card-area { background: #fff; color: #222; border-radius: 16px; padding: 24px; max-width: 480px; width: 100%; min-height: 160px; margin: 0 auto; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.35rem; box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
 
 .player-nav-row { display: flex; gap: 14px; margin-top: 20px; align-items: center; justify-content: center; flex-wrap: wrap; }
-.player-btn {
-  background: rgba(255,255,255,0.92); color: #222; border: none;
-  padding: 10px 20px; border-radius: 24px; font-size: 1rem; font-weight: 600; cursor: pointer;
-}
+.player-btn { background: rgba(255,255,255,0.92); color: #222; border: none; padding: 10px 20px; border-radius: 24px; font-size: 1rem; font-weight: 600; cursor: pointer; }
 .player-btn:disabled { opacity: 0.35; cursor: default; }
-.player-btn-choice {
-  background: rgba(255,255,255,0.92); color: #222; border: none;
-  padding: 14px 24px; border-radius: 12px; font-size: 1rem; font-weight: 600;
-  cursor: pointer; margin: 6px 0; min-width: 200px;
-}
+.player-btn-choice { background: rgba(255,255,255,0.92); color: #222; border: none; padding: 14px 24px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; margin: 6px 0; min-width: 200px; }
 
-.player-memory-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-  max-width: 520px; margin: 0 auto;
-}
-.player-memory-card {
-  background: #fff; color: #222; border-radius: 10px; padding: 14px 6px;
-  font-size: 0.9rem; min-height: 56px; display: flex; align-items: center;
-  justify-content: center; cursor: pointer;
-}
+.player-memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 520px; margin: 0 auto; }
+.player-memory-card { background: #fff; color: #222; border-radius: 10px; padding: 14px 6px; font-size: 0.9rem; min-height: 56px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .player-memory-card.matched { background: #bbf7d0; opacity: 0.65; cursor: default; }
 .player-memory-card.flipped { background: #fef3c7; }
 
 .player-quiz-options { display: flex; flex-direction: column; gap: 10px; max-width: 420px; width: 100%; margin: 0 auto; }
-.player-quiz-opt {
-  background: #fff; color: #222; padding: 12px 16px; border-radius: 10px;
-  cursor: pointer; font-size: 1.05rem; border: 3px solid transparent;
-}
+.player-quiz-opt { background: #fff; color: #222; padding: 12px 16px; border-radius: 10px; cursor: pointer; font-size: 1.05rem; border: 3px solid transparent; }
 .player-quiz-opt.correct { border-color: #22c55e; background: #dcfce7; }
 .player-quiz-opt.wrong { border-color: #ef4444; background: #fee2e2; }
 
 .player-progress-text { margin-top: 10px; opacity: 0.85; font-size: 0.9rem; color: #fff; }
 
-canvas#playerDrawPad {
-  background: #fff; border-radius: 12px; touch-action: none; display: block; margin: 0 auto;
-}
+canvas#playerDrawPad { background: #fff; border-radius: 12px; touch-action: none; display: block; margin: 0 auto; }
 .player-palette { display: flex; gap: 8px; margin: 10px 0; justify-content: center; }
-.player-swatch {
-  width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid #fff;
-}
+.player-swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; }
 
-textarea.player-response-text {
-  width: 100%; max-width: 480px; min-height: 80px; border-radius: 10px;
-  border: none; padding: 10px; font-size: 1rem; margin-top: 10px; font-family: inherit;
-}
+textarea.player-response-text { width: 100%; max-width: 480px; min-height: 80px; border-radius: 10px; border: none; padding: 10px; font-size: 1rem; margin-top: 10px; font-family: inherit; }
 
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4); } 70% { box-shadow: 0 0 0 12px rgba(13, 148, 136, 0); } 100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); } }
 </style>
 </head>
 <body>
 
-<!-- EDITOR MODE -->
 <div id="editorMode">
   <div class="top-bar">
     <h1>🗺️ Recorrido</h1>
@@ -232,7 +145,7 @@ textarea.player-response-text {
       <button class="btn" onclick="openBackgroundsModal()">🖼️ Fondos</button>
       <button class="btn btn-primary" onclick="startPlayer()">▶ Jugar</button>
     </div>
-  </div>
+4  </div>
 
   <div id="canvas-container">
     <div id="canvas-content">
@@ -244,6 +157,12 @@ textarea.player-response-text {
   <div class="fab-container">
     <button class="fab fab-connect" id="fabConnect" onclick="startConnectMode()">🔗</button>
     <button class="fab" onclick="addNode()">＋</button>
+  </div>
+
+  <div class="zoom-controls">
+    <button class="zoom-btn" onclick="zoomOut()">−</button>
+    <span class="zoom-label" id="zoomLabel">100%</span>
+    <button class="zoom-btn" onclick="zoomIn()">+</button>
   </div>
 
   <div class="bottom-sheet" id="bottomSheet">
@@ -293,7 +212,6 @@ textarea.player-response-text {
     </div>
   </div>
 
-  <!-- Modal: Pegar TSV -->
   <div class="modal-overlay" id="pasteModal">
     <div class="modal">
       <div class="modal-header">
@@ -311,7 +229,6 @@ textarea.player-response-text {
     </div>
   </div>
 
-  <!-- Modal: Importar desde AoA -->
   <div class="modal-overlay" id="aoaModal">
     <div class="modal">
       <div class="modal-header">
@@ -348,7 +265,6 @@ textarea.player-response-text {
     </div>
   </div>
 
-  <!-- Modal: Biblioteca de fondos -->
   <div class="modal-overlay" id="backgroundsModal">
     <div class="modal">
       <div class="modal-header">
@@ -366,7 +282,6 @@ textarea.player-response-text {
   </div>
 </div>
 
-<!-- PLAYER MODE -->
 <div class="player-mode" id="playerMode">
   <div class="player-top-bar">
     <button onclick="exitPlayer()">✕ Salir</button>
@@ -381,96 +296,28 @@ textarea.player-response-text {
 <div class="toast" id="toast"></div>
 
 <script>
-// --- 1. STATE & DEFAULTS ---
-const STYLES = {
-  READY: { color: '#d97706', icon: '🚀' },
-  LEARN: { color: '#2563eb', icon: '📚' },
-  PRACTICE: { color: '#0d9488', icon: '🤝' },
-  PERFORM: { color: '#7c3aed', icon: '💪' },
-  SHOW: { color: '#db2777', icon: '⭐' },
-  THINK: { color: '#334155', icon: '💭' }
-};
-
+const STYLES = { READY: { color: '#d97706', icon: '🚀' }, LEARN: { color: '#2563eb', icon: '📚' }, PRACTICE: { color: '#0d9488', icon: '🤝' }, PERFORM: { color: '#7c3aed', icon: '💪' }, SHOW: { color: '#db2777', icon: '⭐' }, THINK: { color: '#334155', icon: '💭' } };
 const AOA_PHASES = ['READY', 'LEARN', 'PRACTICE', 'PERFORM', 'SHOW', 'THINK'];
-const AOA_TYPE_MAP = {
-  READY: 'signpost',
-  LEARN: 'flashcards',
-  PRACTICE: 'memory',
-  PERFORM: 'quiz',
-  SHOW: 'response',
-  THINK: 'reflect'
-};
-
+const AOA_TYPE_MAP = { READY: 'signpost', LEARN: 'flashcards', PRACTICE: 'memory', PERFORM: 'quiz', SHOW: 'response', THINK: 'reflect' };
 const PAIR_TYPES = ['flashcards', 'memory', 'quiz'];
 const PROMPT_TYPES = ['response', 'reflect'];
-
-const SCENARIO_BG_MAP = {
-  "K-1": "bg_classroom", "K-2": "bg_classroom", "K-3": "bg_classroom", "K-4": "bg_classroom",
-  "K-5": "bg_farm_animals", "K-6": "bg_playroom", "K-7": "bg_playroom", "K-8": "bg_classroom",
-  "1-1": "bg_calendar", "1-2": "bg_weather", "1-3": "bg_colors_shapes", "1-4": "bg_home",
-  "1-5": "bg_colors_shapes", "1-6": "bg_colors_shapes", "1-7": "bg_colors_shapes", "1-8": "bg_nature",
-  "2-1": "bg_calendar", "2-2": "bg_classroom", "2-3": "bg_weather", "2-4": "bg_classroom",
-  "2-5": "bg_community", "2-6": "bg_nature", "2-7": "bg_nature", "2-8": "bg_culture",
-  "3-1": "bg_community", "3-2": "bg_classroom", "3-3": "bg_classroom", "3-4": "bg_weather",
-  "3-5": "bg_community", "3-6": "bg_nature", "3-7": "bg_culture", "3-8": "bg_home",
-  "4-1": "bg_community", "4-2": "bg_nature", "4-3": "bg_community", "4-4": "bg_culture",
-  "4-5": "bg_beach", "4-6": "bg_weather", "4-7": "bg_culture", "4-8": "bg_culture",
-  "5-1": "bg_classroom", "5-2": "bg_classroom", "5-3": "bg_community", "5-4": "bg_home",
-  "5-5": "bg_nature", "5-6": "bg_environment", "5-7": "bg_environment", "5-8": "bg_home",
-  "6-1": "bg_community", "6-2": "bg_community", "6-3": "bg_classroom", "6-4": "bg_classroom",
-  "6-5": "bg_community", "6-6": "bg_environment", "6-7": "bg_weather", "6-8": "bg_culture"
-};
-
-const DEFAULT_BG_SLOTS = [
-  { id: 'bg_classroom', label: 'Aula / salón de clases' },
-  { id: 'bg_calendar', label: 'Calendario / días de la semana' },
-  { id: 'bg_weather', label: 'Clima / cielo exterior' },
-  { id: 'bg_home', label: 'Hogar / interior de casa' },
-  { id: 'bg_nature', label: 'Naturaleza / jardín exterior' },
-  { id: 'bg_community', label: 'Comunidad / barrio y mercado' },
-  { id: 'bg_colors_shapes', label: 'Colores y formas' },
-  { id: 'bg_farm_animals', label: 'Granja / animales y sonidos' },
-  { id: 'bg_playroom', label: 'Espacio de juego / movimiento' },
-  { id: 'bg_culture', label: 'Cultura e identidad panameña' },
-  { id: 'bg_beach', label: 'Playa / viaje' },
-  { id: 'bg_environment', label: 'Medio ambiente / reciclaje' }
-];
-
-const DEFAULT_DATA = {
-  meta: { backgroundId: null, startNodeId: null },
-  nodes: [
-    { id: 'n1', label: 'READY', type: 'signpost', x: 100, y: 100, width: 130, height: 80, color: '#d97706', icon: '🚀', signpost: '¡Bienvenido! Toca Start.' },
-    { id: 'n2', label: 'LEARN', type: 'flashcards', x: 300, y: 100, width: 130, height: 80, color: '#2563eb', icon: '📚', signpost: 'Escucha y repite.', pairs: [{a:'cat',b:'meow'},{a:'dog',b:'woof'}] }
-  ],
-  edges: [ { id: 'e1', from: 'n1', to: 'n2' } ]
-};
+const SCENARIO_BG_MAP = {"K-1":"bg_classroom","K-2":"bg_classroom","K-3":"bg_classroom","K-4":"bg_classroom","K-5":"bg_farm_animals","K-6":"bg_playroom","K-7":"bg_playroom","K-8":"bg_classroom","1-1":"bg_calendar","1-2":"bg_weather","1-3":"bg_colors_shapes","1-4":"bg_home","1-5":"bg_colors_shapes","1-6":"bg_colors_shapes","1-7":"bg_colors_shapes","1-8":"bg_nature","2-1":"bg_calendar","2-2":"bg_classroom","2-3":"bg_weather","2-4":"bg_classroom","2-5":"bg_community","2-6":"bg_nature","2-7":"bg_nature","2-8":"bg_culture","3-1":"bg_community","3-2":"bg_classroom","3-3":"bg_classroom","3-4":"bg_weather","3-5":"bg_community","3-6":"bg_nature","3-7":"bg_culture","3-8":"bg_home","4-1":"bg_community","4-2":"bg_nature","4-3":"bg_community","4-4":"bg_culture","4-5":"bg_beach","4-6":"bg_weather","4-7":"bg_culture","4-8":"bg_culture","5-1":"bg_classroom","5-2":"bg_classroom","5-3":"bg_community","5-4":"bg_home","5-5":"bg_nature","5-6":"bg_environment","5-7":"bg_environment","5-8":"bg_home","6-1":"bg_community","6-2":"bg_community","6-3":"bg_classroom","6-4":"bg_classroom","6-5":"bg_community","6-6":"bg_environment","6-7":"bg_weather","6-8":"bg_culture"};
+const DEFAULT_BG_SLOTS = [{id:'bg_classroom',label:'Aula / salón de clases'},{id:'bg_calendar',label:'Calendario / días de4 la semana'},{id:'bg_weather',label:'Clima / cielo exterior'},{id:'bg_home',label:'Hogar / interior de casa'},{id:'bg_nature',label:'Naturaleza / jardín exterior'},{id:'bg_community',label:'Comunidad / barrio y mercado'},{id:'bg_colors_shapes',label:'Colores y formas'},{id:'bg_farm_animals',label:'Granja / animales y sonidos'},{id:'bg_playroom',label:'Espacio de juego / movimiento'},{id:'bg_culture',label:'Cultura e identidad panameña'},{id:'bg_beach',label:'Playa / viaje'},{id:'bg_environment',label:'Medio ambiente / reciclaje'}];
+const DEFAULT_DATA = { meta: { backgroundId: null, startNodeId: null }, nodes: [{ id: 'n1', label: 'READY', type: 'signpost', x: 100, y: 100, width: 130, height: 80, color: '#d97706', icon: '🚀', signpost: '¡Bienvenido! Toca Start.' }, { id: 'n2', label: 'LEARN', type: 'flashcards', x: 300, y: 100, width: 130, height: 80, color: '#2563eb', icon: '📚', signpost: 'Escucha y repite.', pairs: [{a:'cat',b:'meow'},{a:'dog',b:'woof'}] }], edges: [{ id: 'e1', from: 'n1', to: 'n2' }] };
 
 let state = { meta: { backgroundId: null, startNodeId: null }, nodes: [], edges: [], selectedNodeId: null, mode: 'default', connectingFrom: null };
 let backgrounds = [];
 let isDragging = false, dragNodeId = null, dragOffsetX = 0, dragOffsetY = 0;
 let dragStartX = 0, dragStartY = 0;
 const DRAG_THRESHOLD = 10;
+let playerState = { navigationStack: [], visitedSet: new Set(), currentNodeId: null, activityState: {} };
+let currentZoom = 1.0;
 
-// Player state
-let playerState = {
-  navigationStack: [],
-  visitedSet: new Set(),
-  currentNodeId: null,
-  activityState: {}
-};
-
-// --- 2. INIT & PERSISTENCE ---
 function init() {
   const savedBg = localStorage.getItem('recorrido_backgrounds');
-  if (savedBg) {
-    try { backgrounds = JSON.parse(savedBg); } catch(e) { backgrounds = []; }
-  }
-  DEFAULT_BG_SLOTS.forEach(slot => {
-    if (!backgrounds.find(b => b.id === slot.id)) {
-      backgrounds.push({ id: slot.id, label: slot.label, dataUrl: null });
-    }
-  });
-
+  if (savedBg) { try { backgrounds = JSON.parse(savedBg); } catch(e) { backgrounds = []; } }
+  DEFAULT_BG_SLOTS.forEach(slot => { if (!backgrounds.find(b => b.id === slot.id)) { backgrounds.push({ id: slot.id, label: slot.label, dataUrl: null }); } });
+  
   const saved = localStorage.getItem('recorrido_draft');
   if (saved) {
     try {
@@ -478,52 +325,42 @@ function init() {
       if (!state.meta) state.meta = { backgroundId: null, startNodeId: null };
       if (state.meta.backgroundId === undefined) state.meta.backgroundId = null;
       if (state.meta.startNodeId === undefined) state.meta.startNodeId = null;
-    } catch(e) {
-      state = JSON.parse(JSON.stringify(DEFAULT_DATA));
-    }
-  } else {
-    state = JSON.parse(JSON.stringify(DEFAULT_DATA));
-  }
+    } catch(e) { state = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+  } else { state = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
 
+  const savedZoom = localStorage.getItem('recorrido_zoom');
+  if (savedZoom) {
+    currentZoom = parseFloat(savedZoom);
+    if (isNaN(currentZoom) || currentZoom < 0.25 || currentZoom > 1.5) currentZoom = 1.0;
+  }
+  applyZoom(currentZoom);
   applyBackground();
   render();
 }
 
-function saveState() {
-  localStorage.setItem('recorrido_draft', JSON.stringify(state));
-}
+function saveState() { localStorage.setItem('recorrido_draft', JSON.stringify(state)); }
+function saveBackgrounds() { try { localStorage.setItem('recorrido_backgrounds', JSON.stringify(backgrounds)); } catch(e) { showToast('Error: localStorage lleno.'); } }
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2800); }
 
-function saveBackgrounds() {
-  try {
-    localStorage.setItem('recorrido_backgrounds', JSON.stringify(backgrounds));
-  } catch(e) {
-    showToast('Error: localStorage lleno. Elimina fondos o usa imágenes más pequeñas.');
-  }
+function applyZoom(level) {
+  currentZoom = level;
+  localStorage.setItem('recorrido_zoom', currentZoom.toString());
+  document.getElementById('canvas-content').style.zoom = currentZoom;
+  document.getElementById('zoomLabel').textContent = Math.round(currentZoom * 100) + '%';
 }
+function zoomIn() { applyZoom(Math.min(1.5, currentZoom + 0.25)); }
+function zoomOut() { applyZoom(Math.max(0.25, currentZoom - 0.25)); }
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
-}
-
-// --- 3. RENDER (canvas) ---
 function render() {
   const nodesContainer = document.getElementById('nodes-container');
   const svg = document.getElementById('lines-svg');
   nodesContainer.innerHTML = '';
   svg.innerHTML = '';
-
   state.edges.forEach(edge => {
     const from = state.nodes.find(n => n.id === edge.from);
     const to = state.nodes.find(n => n.id === edge.to);
     if (!from || !to) return;
-
-    const x1 = from.x + from.width / 2;
-    const y1 = from.y + from.height / 2;
-    const x2 = to.x + to.width / 2;
-    const y2 = to.y + to.height / 2;
-
+    const x1 = from.x + from.width / 2, y1 = from.y + from.height / 2, x2 = to.x + to.width / 2, y2 = to.y + to.height / 2;
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
     path.setAttribute('stroke', state.mode === 'connecting' && state.connectingFrom === edge.from ? '#0d9488' : '#64748b');
@@ -531,23 +368,15 @@ function render() {
     path.setAttribute('fill', 'none');
     path.setAttribute('pointer-events', 'none');
     svg.appendChild(path);
-
     const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hitPath.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
     hitPath.setAttribute('stroke', 'transparent');
     hitPath.setAttribute('stroke-width', '24');
     hitPath.setAttribute('fill', 'none');
     hitPath.setAttribute('pointer-events', 'stroke');
-    hitPath.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (confirm('¿Eliminar esta conexión?')) {
-        state.edges = state.edges.filter(ed => ed.id !== edge.id);
-        saveState(); render();
-      }
-    });
+    hitPath.addEventListener('click', (e) => { e.stopPropagation(); if (confirm('¿Eliminar esta conexión?')) { state.edges = state.edges.filter(ed => ed.id !== edge.id); saveState(); render(); } });
     svg.appendChild(hitPath);
   });
-
   state.nodes.forEach(node => {
     const el = document.createElement('div');
     const isStart = state.meta.startNodeId === node.id;
@@ -561,27 +390,19 @@ function render() {
     el.addEventListener('pointerdown', (e) => onNodePointerDown(e, node.id));
     nodesContainer.appendChild(el);
   });
-
   document.getElementById('fabConnect').classList.toggle('active', state.mode === 'connecting');
 }
 
-// --- 4. INTERACTION (DRAG) ---
 function onNodePointerDown(e, nodeId) {
-  if (state.mode === 'connecting') {
-    handleConnectTap(nodeId);
-    return;
-  }
-
+  if (state.mode === 'connecting') { handleConnectTap(nodeId); return; }
   e.preventDefault();
   dragNodeId = nodeId;
   dragStartX = e.clientX;
   dragStartY = e.clientY;
   isDragging = false;
-
   const rect = e.currentTarget.getBoundingClientRect();
   dragOffsetX = e.clientX - rect.left;
   dragOffsetY = e.clientY - rect.top;
-
   e.currentTarget.setPointerCapture(e.pointerId);
   e.currentTarget.addEventListener('pointermove', onPointerMove);
   e.currentTarget.addEventListener('pointerup', onPointerUp);
@@ -590,28 +411,23 @@ function onNodePointerDown(e, nodeId) {
 
 function onPointerMove(e) {
   if (!dragNodeId) return;
-
-  const dx = e.clientX - dragStartX;
-  const dy = e.clientY - dragStartY;
+  const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
   const distance = Math.sqrt(dx * dx + dy * dy);
-
-  if (!isDragging && distance > DRAG_THRESHOLD) {
-    isDragging = true;
-  }
-
+  if (!isDragging && distance > DRAG_THRESHOLD) { isDragging = true; }
   if (isDragging) {
     e.preventDefault();
     const node = state.nodes.find(n => n.id === dragNodeId);
     const el = e.currentTarget;
     const canvasContent = document.getElementById('canvas-content');
     const canvasRect = canvasContent.getBoundingClientRect();
-
     const newX = (e.clientX - canvasRect.left) - dragOffsetX;
     const newY = (e.clientY - canvasRect.top) - dragOffsetY;
-
-    node.x = Math.max(0, Math.round(newX / 10) * 10);
-    node.y = Math.max(0, Math.round(newY / 10) * 10);
-
+    // getBoundingClientRect() ya devuelve píxeles reales de pantalla
+    // (post-zoom), pero style.left se interpreta en las unidades locales
+    // del elemento con `zoom` aplicado — hay que dividir por currentZoom
+    // para no mover el nodo a una fracción/múltiplo de lo que se arrastró.
+    node.x = Math.max(0, Math.round((newX / currentZoom) / 10) * 10);
+    node.y = Math.max(0, Math.round((newY / currentZoom) / 10) * 10);
     el.style.left = node.x + 'px';
     el.style.top = node.y + 'px';
     updateEdgesForNode(node.id);
@@ -622,17 +438,11 @@ function updateEdgesForNode(nodeId) {
   const svg = document.getElementById('lines-svg');
   const paths = svg.querySelectorAll('path');
   paths.forEach(p => p.remove());
-
   state.edges.forEach(edge => {
     const from = state.nodes.find(n => n.id === edge.from);
     const to = state.nodes.find(n => n.id === edge.to);
     if (!from || !to) return;
-
-    const x1 = from.x + from.width / 2;
-    const y1 = from.y + from.height / 2;
-    const x2 = to.x + to.width / 2;
-    const y2 = to.y + to.height / 2;
-
+    const x1 = from.x + from.width / 2, y1 = from.y + from.height / 2, x2 = to.x + to.width / 2, y2 = to.y + to.height / 2;
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
     path.setAttribute('stroke', state.mode === 'connecting' && state.connectingFrom === edge.from ? '#0d9488' : '#64748b');
@@ -640,35 +450,20 @@ function updateEdgesForNode(nodeId) {
     path.setAttribute('fill', 'none');
     path.setAttribute('pointer-events', 'none');
     svg.appendChild(path);
-
     const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hitPath.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
     hitPath.setAttribute('stroke', 'transparent');
     hitPath.setAttribute('stroke-width', '24');
     hitPath.setAttribute('fill', 'none');
     hitPath.setAttribute('pointer-events', 'stroke');
-    hitPath.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (confirm('¿Eliminar esta conexión?')) {
-        state.edges = state.edges.filter(ed => ed.id !== edge.id);
-        saveState(); render();
-      }
-    });
+    hitPath.addEventListener('click', (e) => { e.stopPropagation(); if (confirm('¿Eliminar esta conexión?')) { state.edges = state.edges.filter(ed => ed.id !== edge.id); saveState(); render(); } });
     svg.appendChild(hitPath);
   });
 }
 
 function onPointerUp(e) {
   if (!dragNodeId) return;
-
-  if (!isDragging) {
-    state.selectedNodeId = dragNodeId;
-    openSheet(dragNodeId);
-    render();
-  } else {
-    saveState();
-  }
-
+  if (!isDragging) { state.selectedNodeId = dragNodeId; openSheet(dragNodeId); render(); } else { saveState(); }
   isDragging = false;
   dragNodeId = null;
   e.currentTarget.releasePointerCapture(e.pointerId);
@@ -677,12 +472,8 @@ function onPointerUp(e) {
   e.currentTarget.removeEventListener('pointercancel', onPointerUp);
 }
 
-// --- 5. CONNECTION LOGIC ---
 function startConnectMode() {
-  if (!state.selectedNodeId) {
-    showToast('Primero selecciona un nodo');
-    return;
-  }
+  if (!state.selectedNodeId) { showToast('Primero selecciona un nodo'); return; }
   state.mode = 'connecting';
   state.connectingFrom = state.selectedNodeId;
   closeSheet();
@@ -691,36 +482,26 @@ function startConnectMode() {
 }
 
 function handleConnectTap(targetNodeId) {
-  if (state.connectingFrom === targetNodeId) {
-    showToast('No puedes conectar un nodo consigo mismo');
-    return;
-  }
+  if (state.connectingFrom === targetNodeId) { showToast('No puedes conectar un nodo consigo mismo'); return; }
   const exists = state.edges.some(edge => edge.from === state.connectingFrom && edge.to === targetNodeId);
-  if (exists) {
-    showToast('Esta conexión ya existe');
-  } else {
-    state.edges.push({ id: 'e' + Date.now(), from: state.connectingFrom, to: targetNodeId });
-    showToast('¡Conexión creada!');
-  }
+  if (exists) { showToast('Esta conexión ya existe'); } else { state.edges.push({ id: 'e' + Date.now(), from: state.connectingFrom, to: targetNodeId }); showToast('¡Conexión creada!'); }
   state.mode = 'default';
   state.connectingFrom = null;
   saveState();
   render();
 }
 
-// --- 6. NODE MANAGEMENT & EDITING ---
 function addNode() {
   const container = document.getElementById('canvas-container');
-  const x = container.scrollLeft + (container.clientWidth / 2) - 65;
-  const y = container.scrollTop + (container.clientHeight / 2) - 40;
+  // container.scrollLeft/clientWidth son del contenedor SIN zoom (el
+  // viewport real); hay que dividir por currentZoom para convertirlos a
+  // las unidades locales del canvas con zoom, igual que en el arrastre.
+  const x = (container.scrollLeft + (container.clientWidth / 2)) / currentZoom - 65;
+  const y = (container.scrollTop + (container.clientHeight / 2)) / currentZoom - 40;
   const keys = Object.keys(STYLES);
   const randomKey = keys[Math.floor(Math.random() * keys.length)];
   const style = STYLES[randomKey];
-  const newNode = {
-    id: 'n' + Date.now(), label: randomKey, type: 'signpost',
-    x: Math.round(x / 10) * 10, y: Math.round(y / 10) * 10,
-    width: 130, height: 80, color: style.color, icon: style.icon, signpost: ''
-  };
+  const newNode = { id: 'n' + Date.now(), label: randomKey, type: 'signpost', x: Math.round(x / 10) * 10, y: Math.round(y / 10) * 10, width: 130, height: 80, color: style.color, icon: style.icon, signpost: '' };
   state.nodes.push(newNode);
   state.selectedNodeId = newNode.id;
   saveState();
@@ -733,9 +514,7 @@ function deleteSelectedNode() {
   if (!confirm('¿Eliminar este nodo y sus conexiones?')) return;
   state.nodes = state.nodes.filter(n => n.id !== state.selectedNodeId);
   state.edges = state.edges.filter(e => e.from !== state.selectedNodeId && e.to !== state.selectedNodeId);
-  if (state.meta.startNodeId === state.selectedNodeId) {
-    state.meta.startNodeId = null;
-  }
+  if (state.meta.startNodeId === state.selectedNodeId) { state.meta.startNodeId = null; }
   state.selectedNodeId = null;
   closeSheet();
   saveState();
@@ -765,10 +544,7 @@ function openSheet(nodeId) {
 
 function closeSheet() {
   document.getElementById('bottomSheet').classList.remove('open');
-  if (state.mode !== 'connecting') {
-    state.selectedNodeId = null;
-    render();
-  }
+  if (state.mode !== 'connecting') { state.selectedNodeId = null; render(); }
 }
 
 function updateNodeData(field, value) {
@@ -776,10 +552,7 @@ function updateNodeData(field, value) {
   const node = state.nodes.find(n => n.id === state.selectedNodeId);
   if (!node) return;
   node[field] = value;
-  if (field === 'label' && STYLES[value.toUpperCase()]) {
-    node.color = STYLES[value.toUpperCase()].color;
-    node.icon = STYLES[value.toUpperCase()].icon;
-  }
+  if (field === 'label' && STYLES[value.toUpperCase()]) { node.color = STYLES[value.toUpperCase()].color; node.icon = STYLES[value.toUpperCase()].icon; }
   saveState();
   render();
 }
@@ -797,12 +570,7 @@ function updateNodeType(newType) {
 
 function updatePairsVisibility(type) {
   const section = document.getElementById('pairsSection');
-  if (PAIR_TYPES.includes(type)) {
-    section.style.display = 'block';
-    renderPairsEditor();
-  } else {
-    section.style.display = 'none';
-  }
+  if (PAIR_TYPES.includes(type)) { section.style.display = 'block'; renderPairsEditor(); } else { section.style.display = 'none'; }
 }
 
 function updatePromptVisibility(type) {
@@ -810,33 +578,23 @@ function updatePromptVisibility(type) {
   group.style.display = PROMPT_TYPES.includes(type) ? 'block' : 'none';
 }
 
-// --- 7. PAIRS EDITOR ---
 function renderPairsEditor() {
   const node = state.nodes.find(n => n.id === state.selectedNodeId);
   if (!node) return;
   if (!node.pairs) node.pairs = [];
-
   const list = document.getElementById('pairsList');
   const count = document.getElementById('pairsCount');
   count.textContent = `(${node.pairs.length} par${node.pairs.length !== 1 ? 'es' : ''})`;
-
   list.innerHTML = '';
   node.pairs.forEach((pair, idx) => {
     const row = document.createElement('div');
     row.className = 'pair-row';
-    row.innerHTML = `
-      <input type="text" value="${escapeHtml(pair.a || '')}" placeholder="Término" oninput="updatePairField(${idx}, 'a', this.value)">
-      <input type="text" value="${escapeHtml(pair.b || '')}" placeholder="Definición" oninput="updatePairField(${idx}, 'b', this.value)">
-      <button class="btn-remove" onclick="removePairRow(${idx})">✕</button>
-    `;
+    row.innerHTML = `<input type="text" value="${escapeHtml(pair.a || '')}" placeholder="Término" oninput="updatePairField(${idx}, 'a', this.value)"><input type="text" value="${escapeHtml(pair.b || '')}" placeholder="Definición" oninput="updatePairField(${idx}, 'b', this.value)"><button class="btn-remove" onclick="removePairRow(${idx})">✕</button>`;
     list.appendChild(row);
   });
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
+function escapeHtml(str) { return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function addPairRow() {
   const node = state.nodes.find(n => n.id === state.selectedNodeId);
   if (!node) return;
@@ -845,7 +603,6 @@ function addPairRow() {
   saveState();
   renderPairsEditor();
 }
-
 function removePairRow(idx) {
   const node = state.nodes.find(n => n.id === state.selectedNodeId);
   if (!node || !node.pairs) return;
@@ -853,14 +610,12 @@ function removePairRow(idx) {
   saveState();
   renderPairsEditor();
 }
-
 function updatePairField(idx, field, value) {
   const node = state.nodes.find(n => n.id === state.selectedNodeId);
   if (!node || !node.pairs || !node.pairs[idx]) return;
   node.pairs[idx][field] = value;
   saveState();
 }
-
 function updateNodePairs(pairs) {
   const node = state.nodes.find(n => n.id === state.selectedNodeId);
   if (!node) return;
@@ -869,63 +624,28 @@ function updateNodePairs(pairs) {
   renderPairsEditor();
 }
 
-// --- 8. PASTE FROM TEXT (TSV) ---
-function openPasteModal() {
-  document.getElementById('pasteArea').value = '';
-  document.getElementById('pasteModal').classList.add('open');
-}
-
-function closePasteModal() {
-  document.getElementById('pasteModal').classList.remove('open');
-}
-
+function openPasteModal() { document.getElementById('pasteArea').value = ''; document.getElementById('pasteModal').classList.add('open'); }
+function closePasteModal() { document.getElementById('pasteModal').classList.remove('open'); }
 function applyPastedText() {
   const text = document.getElementById('pasteArea').value;
-  if (!text.trim()) {
-    showToast('El área de texto está vacía');
-    return;
-  }
-
+  if (!text.trim()) { showToast('El área de texto está vacía'); return; }
   const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
   const pairs = [];
-
   lines.forEach(line => {
     const parts = line.split('\t');
-    if (parts.length >= 2) {
-      const a = parts[0].trim();
-      const b = parts.slice(1).join('\t').trim();
-      if (a && b) pairs.push({ a, b });
-    } else {
-      const fallback = line.split(/\s{2,}/);
-      if (fallback.length >= 2) {
-        const a = fallback[0].trim();
-        const b = fallback.slice(1).join(' ').trim();
-        if (a && b) pairs.push({ a, b });
-      }
-    }
+    if (parts.length >= 2) { const a = parts[0].trim(); const b = parts.slice(1).join('\t').trim(); if (a && b) pairs.push({ a, b }); }
+    else { const fallback = line.split(/\s{2,}/); if (fallback.length >= 2) { const a = fallback[0].trim(); const b = fallback.slice(1).join(' ').trim(); if (a && b) pairs.push({ a, b }); } }
   });
-
-  if (pairs.length === 0) {
-    showToast('No se encontraron pares válidos');
-    return;
-  }
-
+  if (pairs.length === 0) { showToast('No se encontraron pares válidos'); return; }
   updateNodePairs(pairs);
   closePasteModal();
   showToast(`${pairs.length} par${pairs.length !== 1 ? 'es' : ''} importado${pairs.length !== 1 ? 's' : ''}`);
 }
 
-// --- 9. IMPORT EXCEL ---
 function importExcel(input) {
   const file = input.files[0];
   if (!file) return;
-
-  if (typeof XLSX === 'undefined') {
-    alert('La librería SheetJS no se cargó. Verifica tu conexión a internet.');
-    input.value = '';
-    return;
-  }
-
+  if (typeof XLSX === 'undefined') { alert('La librería SheetJS no se cargó.'); input.value = ''; return; }
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
@@ -933,36 +653,17 @@ function importExcel(input) {
       const workbook = XLSX.read(data, { type: 'array' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-
       const pairs = [];
-      rows.forEach(row => {
-        if (!Array.isArray(row) || row.length < 2) return;
-        const a = String(row[0] || '').trim();
-        const b = String(row[1] || '').trim();
-        if (a && b) pairs.push({ a, b });
-      });
-
-      if (pairs.length === 0) {
-        showToast('El Excel no contiene pares válidos');
-      } else {
-        updateNodePairs(pairs);
-        showToast(`${pairs.length} par${pairs.length !== 1 ? 'es' : ''} importado${pairs.length !== 1 ? 's' : ''} desde Excel`);
-      }
-    } catch (err) {
-      alert('Error al leer el archivo Excel: ' + err.message);
-    }
+      rows.forEach(row => { if (!Array.isArray(row) || row.length < 2) return; const a = String(row[0] || '').trim(); const b = String(row[1] || '').trim(); if (a && b) pairs.push({ a, b }); });
+      if (pairs.length === 0) { showToast('El Excel no contiene pares válidos'); } else { updateNodePairs(pairs); showToast(`${pairs.length} par${pairs.length !== 1 ? 'es' : ''} importado${pairs.length !== 1 ? 's' : ''} desde Excel`); }
+    } catch (err) { alert('Error al leer el archivo Excel: ' + err.message); }
     input.value = '';
   };
   reader.readAsArrayBuffer(file);
 }
 
-// --- 10. IMPORT / EXPORT JSON ---
 function exportJSON() {
-  const exportState = {
-    meta: state.meta,
-    nodes: state.nodes,
-    edges: state.edges
-  };
+  const exportState = { meta: state.meta, nodes: state.nodes, edges: state.edges };
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportState, null, 2));
   const a = document.createElement('a');
   a.setAttribute("href", dataStr);
@@ -992,121 +693,46 @@ function importJSON(input) {
         applyBackground();
         render();
         showToast('Mapa importado correctamente');
-      } else {
-        alert('Formato JSON inválido: faltan nodes o edges');
-      }
-    } catch (err) {
-      alert('Error al leer el archivo JSON');
-    }
+      } else { alert('Formato JSON inválido'); }
+    } catch (err) { alert('Error al leer el archivo JSON'); }
   };
   reader.readAsText(file);
   input.value = '';
 }
 
-// --- 11. IMPORT FROM AoA STAGE WEAVER ---
-function openAoAModal() {
-  document.getElementById('aoaGrade').value = 'K';
-  document.getElementById('aoaScenario').value = '';
-  document.getElementById('aoaJson').value = '';
-  document.getElementById('aoaModal').classList.add('open');
-}
-
-function closeAoAModal() {
-  document.getElementById('aoaModal').classList.remove('open');
-}
-
+function openAoAModal() { document.getElementById('aoaGrade').value = 'K'; document.getElementById('aoaScenario').value = ''; document.getElementById('aoaJson').value = ''; document.getElementById('aoaModal').classList.add('open'); }
+function closeAoAModal() { document.getElementById('aoaModal').classList.remove('open'); }
 function applyAoAImport() {
   const grade = document.getElementById('aoaGrade').value;
   const scenarioInput = document.getElementById('aoaScenario').value.trim();
   const jsonText = document.getElementById('aoaJson').value.trim();
-
-  if (!jsonText) {
-    showToast('Pega el JSON de las 6 fases');
-    return;
-  }
-
+  if (!jsonText) { showToast('Pega el JSON de las 6 fases'); return; }
   let aoaData;
-  try {
-    aoaData = JSON.parse(jsonText);
-  } catch(e) {
-    alert('JSON inválido: ' + e.message);
-    return;
-  }
-
+  try { aoaData = JSON.parse(jsonText); } catch(e) { alert('JSON inválido: ' + e.message); return; }
   const hasAnyPhase = AOA_PHASES.some(p => aoaData[p]);
-  if (!hasAnyPhase) {
-    alert('El JSON debe contener al menos una de las fases: ' + AOA_PHASES.join(', '));
-    return;
-  }
-
+  if (!hasAnyPhase) { alert('El JSON debe contener al menos una de las fases'); return; }
   let startX = 100, startY = 100;
   if (state.nodes.length > 0) {
-    const replace = confirm('¿Reemplazar el mapa actual con las 6 fases de AoA?\n\nOK = Reemplazar\nCancelar = Agregar los 6 nodos aparte (sin borrar los existentes)');
-    if (replace) {
-      state.nodes = [];
-      state.edges = [];
-      state.meta.backgroundId = null;
-      state.meta.startNodeId = null;
-    } else {
-      const maxX = Math.max(...state.nodes.map(n => n.x + n.width));
-      startX = maxX + 200;
-      startY = 100;
-    }
+    const replace = confirm('¿Reemplazar el mapa actual con las 6 fases de AoA?');
+    if (replace) { state.nodes = []; state.edges = []; state.meta.backgroundId = null; state.meta.startNodeId = null; } else { const maxX = Math.max(...state.nodes.map(n => n.x + n.width)); startX = maxX + 200; startY = 100; }
   }
-
-  const newNodes = [];
-  const newEdges = [];
+  const newNodes = [], newEdges = [];
   AOA_PHASES.forEach((phase, idx) => {
     const phaseData = aoaData[phase];
     if (!phaseData) return;
-
     const style = STYLES[phase];
-    const node = {
-      id: 'aoa_' + phase + '_' + Date.now() + '_' + idx,
-      label: phase,
-      type: AOA_TYPE_MAP[phase],
-      x: startX + (idx * 250),
-      y: startY,
-      width: 130,
-      height: 80,
-      color: style.color,
-      icon: style.icon,
-      signpost: phaseData.signpost || '',
-      prompt: phaseData.prompt || ''
-    };
-
-    if (Array.isArray(phaseData.pairs) && phaseData.pairs.length > 0) {
-      node.pairs = phaseData.pairs.map(p => ({ a: String(p.a || ''), b: String(p.b || '') }));
-    }
-
+    const node = { id: 'aoa_' + phase + '_' + Date.now() + '_' + idx, label: phase, type: AOA_TYPE_MAP[phase], x: startX + (idx * 250), y: startY, width: 130, height: 80, color: style.color, icon: style.icon, signpost: phaseData.signpost || '', prompt: phaseData.prompt || '' };
+    if (Array.isArray(phaseData.pairs) && phaseData.pairs.length > 0) { node.pairs = phaseData.pairs.map(p => ({ a: String(p.a || ''), b: String(p.b || '') })); }
     newNodes.push(node);
   });
-
-  for (let i = 0; i < newNodes.length - 1; i++) {
-    newEdges.push({
-      id: 'aoa_e_' + i + '_' + Date.now(),
-      from: newNodes[i].id,
-      to: newNodes[i + 1].id
-    });
-  }
-
+  for (let i = 0; i < newNodes.length - 1; i++) { newEdges.push({ id: 'aoa_e_' + i + '_' + Date.now(), from: newNodes[i].id, to: newNodes[i + 1].id }); }
   state.nodes = state.nodes.concat(newNodes);
   state.edges = state.edges.concat(newEdges);
-
-  if (newNodes.length > 0 && !state.meta.startNodeId) {
-    state.meta.startNodeId = newNodes[0].id;
-  }
-
+  if (newNodes.length > 0 && !state.meta.startNodeId) { state.meta.startNodeId = newNodes[0].id; }
   if (scenarioInput) {
     const bgId = resolveScenarioBackground(grade, scenarioInput);
-    if (bgId) {
-      state.meta.backgroundId = bgId;
-      showToast(`Fondo asignado: ${getBackgroundLabel(bgId)}`);
-    } else {
-      showToast('No se encontró fondo para ese Scenario. Puedes elegirlo manualmente en 🖼️ Fondos');
-    }
+    if (bgId) { state.meta.backgroundId = bgId; showToast(`Fondo asignado: ${getBackgroundLabel(bgId)}`); } else { showToast('No se encontró fondo para ese Scenario'); }
   }
-
   saveState();
   applyBackground();
   render();
@@ -1116,305 +742,153 @@ function applyAoAImport() {
 function resolveScenarioBackground(grade, scenarioInput) {
   const directKey = grade + '-' + scenarioInput;
   if (SCENARIO_BG_MAP[directKey]) return SCENARIO_BG_MAP[directKey];
-
   const numMatch = scenarioInput.match(/(\d+)/);
-  if (numMatch) {
-    const num = numMatch[1];
-    const key = grade + '-' + num;
-    if (SCENARIO_BG_MAP[key]) return SCENARIO_BG_MAP[key];
-  }
-
+  if (numMatch) { const num = numMatch[1]; const key = grade + '-' + num; if (SCENARIO_BG_MAP[key]) return SCENARIO_BG_MAP[key]; }
   return null;
 }
+function getBackgroundLabel(bgId) { const bg = backgrounds.find(b => b.id === bgId); return bg ? bg.label : bgId; }
 
-function getBackgroundLabel(bgId) {
-  const bg = backgrounds.find(b => b.id === bgId);
-  return bg ? bg.label : bgId;
-}
-
-// --- 12. BACKGROUNDS LIBRARY ---
-function openBackgroundsModal() {
-  renderBackgroundsGrid();
-  document.getElementById('backgroundsModal').classList.add('open');
-}
-
-function closeBackgroundsModal() {
-  document.getElementById('backgroundsModal').classList.remove('open');
-}
-
+function openBackgroundsModal() { renderBackgroundsGrid(); document.getElementById('backgroundsModal').classList.add('open'); }
+function closeBackgroundsModal() { document.getElementById('backgroundsModal').classList.remove('open'); }
 function renderBackgroundsGrid() {
   const grid = document.getElementById('bgGrid');
   grid.innerHTML = '';
-
   backgrounds.forEach(bg => {
     const slot = document.createElement('div');
     slot.className = 'bg-slot' + (bg.dataUrl ? ' has-image' : '') + (state.meta.backgroundId === bg.id ? ' active' : '');
-
     const thumb = document.createElement('div');
     thumb.className = 'bg-thumb';
-    if (bg.dataUrl) {
-      const img = document.createElement('img');
-      img.src = bg.dataUrl;
-      img.alt = bg.label;
-      thumb.appendChild(img);
-    } else {
-      thumb.textContent = '🖼️';
-    }
+    if (bg.dataUrl) { const img = document.createElement('img'); img.src = bg.dataUrl; img.alt = bg.label; thumb.appendChild(img); } else { thumb.textContent = '🖼️'; }
     slot.appendChild(thumb);
-
     const label = document.createElement('div');
     label.className = 'bg-label';
     label.textContent = bg.label;
     slot.appendChild(label);
-
     const actions = document.createElement('div');
     actions.className = 'bg-actions';
-
     if (bg.dataUrl) {
-      const useBtn = document.createElement('button');
-      useBtn.className = 'btn btn-primary';
-      useBtn.textContent = state.meta.backgroundId === bg.id ? '✓ Activo' : 'Usar';
-      useBtn.onclick = () => useBackground(bg.id);
-      actions.appendChild(useBtn);
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'btn btn-danger';
-      delBtn.textContent = '✕';
-      delBtn.onclick = () => deleteBackground(bg.id);
-      actions.appendChild(delBtn);
+      const useBtn = document.createElement('button'); useBtn.className = 'btn btn-primary'; useBtn.textContent = state.meta.backgroundId === bg.id ? '✓ Activo' : 'Usar'; useBtn.onclick = () => useBackground(bg.id); actions.appendChild(useBtn);
+      const delBtn = document.createElement('button'); delBtn.className = 'btn btn-danger'; delBtn.textContent = '✕'; delBtn.onclick = () => deleteBackground(bg.id); actions.appendChild(delBtn);
     } else {
-      const uploadBtn = document.createElement('button');
-      uploadBtn.className = 'btn btn-secondary';
-      uploadBtn.textContent = 'Subir imagen';
-      uploadBtn.style.fontSize = '0.7rem';
-      uploadBtn.onclick = () => uploadForSlot(bg.id);
-      actions.appendChild(uploadBtn);
+      const uploadBtn = document.createElement('button'); uploadBtn.className = 'btn btn-secondary'; uploadBtn.textContent = 'Subir imagen'; uploadBtn.style.fontSize = '0.7rem'; uploadBtn.onclick = () => uploadForSlot(bg.id); actions.appendChild(uploadBtn);
     }
-
     slot.appendChild(actions);
     grid.appendChild(slot);
   });
 }
-
-function useBackground(bgId) {
-  state.meta.backgroundId = bgId;
-  saveState();
-  applyBackground();
-  renderBackgroundsGrid();
-  showToast('Fondo aplicado');
-}
-
-function clearBackground() {
-  state.meta.backgroundId = null;
-  saveState();
-  applyBackground();
-  renderBackgroundsGrid();
-  showToast('Fondo quitado');
-}
-
+function useBackground(bgId) { state.meta.backgroundId = bgId; saveState(); applyBackground(); renderBackgroundsGrid(); showToast('Fondo aplicado'); }
+function clearBackground() { state.meta.backgroundId = null; saveState(); applyBackground(); renderBackgroundsGrid(); showToast('Fondo quitado'); }
 function deleteBackground(bgId) {
   const bg = backgrounds.find(b => b.id === bgId);
   if (!bg) return;
-
-  // Fondos personalizados (bg_custom_*) se eliminan completamente
   if (bgId.startsWith('bg_custom_')) {
-    if (!confirm('¿Eliminar este fondo personalizado de la biblioteca?')) return;
+    if (!confirm('¿Eliminar este fondo personalizado?')) return;
     backgrounds = backgrounds.filter(b => b.id !== bgId);
-    if (state.meta.backgroundId === bgId) {
-      state.meta.backgroundId = null;
-      applyBackground();
-    }
+    if (state.meta.backgroundId === bgId) { state.meta.backgroundId = null; applyBackground(); }
   } else {
-    // Slots fijos solo se vacían
     bg.dataUrl = null;
-    if (state.meta.backgroundId === bgId) {
-      state.meta.backgroundId = null;
-      applyBackground();
-    }
+    if (state.meta.backgroundId === bgId) { state.meta.backgroundId = null; applyBackground(); }
   }
-
   saveBackgrounds();
   saveState();
   renderBackgroundsGrid();
   showToast('Imagen eliminada');
 }
-
 function uploadForSlot(bgId) {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
-  input.onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    processAndSaveBackground(file, bgId);
-  };
+  input.onchange = (e) => { const file = e.target.files[0]; if (!file) return; processAndSaveBackground(file, bgId); };
   input.click();
 }
-
 function addBackground(input) {
   const file = input.files[0];
   if (!file) return;
-
   const newId = 'bg_custom_' + Date.now();
   const label = prompt('Nombre para este fondo:', file.name.replace(/\.[^.]+$/, '')) || 'Fondo personalizado';
-
   backgrounds.push({ id: newId, label: label, dataUrl: null });
   saveBackgrounds();
   renderBackgroundsGrid();
-
   processAndSaveBackground(file, newId);
   input.value = '';
 }
-
 function processAndSaveBackground(file, bgId) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const img = new Image();
     img.onload = function() {
-      const MAX_WIDTH = 1920;
-      const QUALITY = 0.75;
-      let w = img.width;
-      let h = img.height;
-
-      if (w > MAX_WIDTH) {
-        const ratio = MAX_WIDTH / w;
-        w = MAX_WIDTH;
-        h = Math.round(h * ratio);
-      }
-
+      const MAX_WIDTH = 1920, QUALITY = 0.75;
+      let w = img.width, h = img.height;
+      if (w > MAX_WIDTH) { const ratio = MAX_WIDTH / w; w = MAX_WIDTH; h = Math.round(h * ratio); }
       const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
-
       const dataUrl = canvas.toDataURL('image/jpeg', QUALITY);
-
       const bg = backgrounds.find(b => b.id === bgId);
       if (bg) {
         bg.dataUrl = dataUrl;
-        try {
-          saveBackgrounds();
-          renderBackgroundsGrid();
-          showToast('Imagen guardada');
-        } catch(err) {
-          showToast('Error: imagen muy grande para localStorage');
-          bg.dataUrl = null;
-        }
+        try { saveBackgrounds(); renderBackgroundsGrid(); showToast('Imagen guardada'); } catch(err) { showToast('Error: imagen muy grande'); bg.dataUrl = null; }
       }
     };
-    img.onerror = function() {
-      showToast('Error al procesar la imagen');
-    };
+    img.onerror = function() { showToast('Error al procesar la imagen'); };
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
-
 function applyBackground() {
   const canvasContent = document.getElementById('canvas-content');
   if (state.meta && state.meta.backgroundId) {
     const bg = backgrounds.find(b => b.id === state.meta.backgroundId);
     if (bg && bg.dataUrl) {
       canvasContent.style.backgroundImage = `url(${bg.dataUrl})`;
-      // NO usar 'cover' aquí: #canvas-content es un lienzo virtual de
-      // 2000x2000px (para tener espacio de sobra), no la pantalla visible.
-      // 'cover' estiraría la imagen para cubrir ese cuadrado gigante,
-      // ampliándola muchísimo. Igualamos el ancho al canvas y dejamos
-      // que la altura escale proporcional — mismo criterio que el CSS
-      // de #canvas-content, para que uno no pise al otro.
       canvasContent.style.backgroundSize = '2000px auto';
-      canvasContent.style.backgroundPosition = 'top center';
+      canvasContent.style.backgroundPosition = 'center';
       return;
     }
   }
   canvasContent.style.backgroundImage = '';
 }
 
-// Tap on empty canvas to deselect
 document.getElementById('canvas-container').addEventListener('pointerdown', (e) => {
   if (e.target.id === 'canvas-container' || e.target.id === 'canvas-content' || e.target.id === 'lines-svg') {
-    if (state.mode === 'connecting') {
-      state.mode = 'default';
-      state.connectingFrom = null;
-      showToast('Conexión cancelada');
-    } else {
-      state.selectedNodeId = null;
-      closeSheet();
-    }
+    if (state.mode === 'connecting') { state.mode = 'default'; state.connectingFrom = null; showToast('Conexión cancelada'); } else { state.selectedNodeId = null; closeSheet(); }
     render();
   }
 });
 
-// ===== PLAYER MODE =====
 function startPlayer() {
-  // Determinar nodo de inicio
   let startNodeId = state.meta.startNodeId;
-
   if (!startNodeId) {
-    // Auto-detectar: buscar nodos sin aristas entrantes
-    const nodesWithoutIncoming = state.nodes.filter(node => {
-      return !state.edges.some(e => e.to === node.id);
-    });
-
-    if (nodesWithoutIncoming.length === 1) {
-      startNodeId = nodesWithoutIncoming[0].id;
-    } else if (nodesWithoutIncoming.length === 0) {
-      alert('No se encontró un nodo de inicio. Por favor, marca un nodo como inicio usando el botón 🚩 en el panel de edición.');
-      return;
-    } else {
-      alert(`Hay ${nodesWithoutIncoming.length} nodos sin conexiones entrantes. Por favor, marca uno como inicio usando el botón 🚩 en el panel de edición.`);
-      return;
-    }
+    const nodesWithoutIncoming = state.nodes.filter(node => !state.edges.some(e => e.to === node.id));
+    if (nodesWithoutIncoming.length === 1) { startNodeId = nodesWithoutIncoming[0].id; }
+    else if (nodesWithoutIncoming.length === 0) { alert('No se encontró un nodo de inicio. Marca uno con 🚩'); return; }
+    else { alert(`Hay ${nodesWithoutIncoming.length} nodos sin conexiones entrantes. Marca uno con 🚩`); return; }
   }
-
-  // Inicializar estado del jugador
-  playerState = {
-    navigationStack: [startNodeId],
-    visitedSet: new Set([startNodeId]),
-    currentNodeId: startNodeId,
-    activityState: {}
-  };
-
-  // Mostrar modo jugador
+  playerState = { navigationStack: [startNodeId], visitedSet: new Set([startNodeId]), currentNodeId: startNodeId, activityState: {} };
   document.getElementById('editorMode').style.display = 'none';
   document.getElementById('playerMode').classList.add('active');
-
   renderPlayerScreen();
 }
 
 function exitPlayer() {
   document.getElementById('playerMode').classList.remove('active');
   document.getElementById('editorMode').style.display = 'flex';
-  playerState = {
-    navigationStack: [],
-    visitedSet: new Set(),
-    currentNodeId: null,
-    activityState: {}
-  };
+  playerState = { navigationStack: [], visitedSet: new Set(), currentNodeId: null, activityState: {} };
 }
 
 function renderPlayerScreen() {
   const node = state.nodes.find(n => n.id === playerState.currentNodeId);
   if (!node) return;
-
   const screen = document.getElementById('playerScreen');
   const content = document.getElementById('playerContent');
   const progressEl = document.getElementById('playerProgress');
-
-  // Actualizar progreso
   progressEl.textContent = `${playerState.visitedSet.size} / ${state.nodes.length}`;
-
-  // Configurar fondo
+  
   const hasBg = state.meta && state.meta.backgroundId;
   let bgDataUrl = null;
-  if (hasBg) {
-    const bg = backgrounds.find(b => b.id === state.meta.backgroundId);
-    if (bg && bg.dataUrl) {
-      bgDataUrl = bg.dataUrl;
-    }
-  }
-
+  if (hasBg) { const bg = backgrounds.find(b => b.id === state.meta.backgroundId); if (bg && bg.dataUrl) { bgDataUrl = bg.dataUrl; } }
+  
   if (bgDataUrl) {
     screen.classList.add('has-bg');
     screen.style.backgroundImage = `url(${bgDataUrl})`;
@@ -1426,71 +900,45 @@ function renderPlayerScreen() {
     screen.querySelector('.player-overlay').style.display = 'none';
   }
 
-  // Construir contenido
   let html = `<div class="player-gesture">${node.icon}</div>`;
   html += `<h1 class="player-title">${node.label}</h1>`;
-  if (node.signpost) {
-    html += `<div class="player-signpost">${node.signpost}</div>`;
-  }
-
+  if (node.signpost) { html += `<div class="player-signpost">${node.signpost}</div>`; }
   content.innerHTML = html;
 
-  // Renderizar actividad según tipo
   const activityWrap = document.createElement('div');
   content.appendChild(activityWrap);
+  if (node.type === 'flashcards') { renderPlayerFlashcards(activityWrap, node); }
+  else if (node.type === 'memory') { renderPlayerMemory(activityWrap, node); }
+  else if (node.type === 'quiz') { renderPlayerQuiz(activityWrap, node); }
+  else if (node.type === 'response') { renderPlayerResponse(activityWrap, node); }
+  else if (node.type === 'reflect') { renderPlayerReflect(activityWrap, node); }
 
-  if (node.type === 'signpost') {
-    // El botón se agrega más abajo, en el bloque de navegación unificado
-    // (antes estaba fijo aquí como "Start →" llamando a playerNext() sin
-    // pasar por la lógica de 0/1/2+ aristas — rompía con signposts que
-    // bifurcan o que no son el primer nodo del recorrido).
-  } else if (node.type === 'flashcards') {
-    renderPlayerFlashcards(activityWrap, node);
-  } else if (node.type === 'memory') {
-    renderPlayerMemory(activityWrap, node);
-  } else if (node.type === 'quiz') {
-    renderPlayerQuiz(activityWrap, node);
-  } else if (node.type === 'response') {
-    renderPlayerResponse(activityWrap, node);
-  } else if (node.type === 'reflect') {
-    renderPlayerReflect(activityWrap, node);
+  const navRow = document.createElement('div');
+  navRow.className = 'player-nav-row';
+  navRow.style.marginTop = '18px';
+  const canGoBack = playerState.navigationStack.length > 1;
+  if (canGoBack) { navRow.innerHTML += `<button class="player-btn" onclick="playerBack()">← Back</button>`; }
+  
+  const outgoingEdges = state.edges.filter(e => e.from === node.id);
+  if (outgoingEdges.length === 0) {
+    navRow.innerHTML += `<button class="player-btn" onclick="playerFinish()">Finish 🎉</button>`;
+  } else if (outgoingEdges.length === 1) {
+    navRow.innerHTML += `<button class="player-btn" onclick="playerNext()">Continue →</button>`;
+  } else {
+    navRow.innerHTML = `<div style="width:100%;"><p style="margin-bottom:12px;color:#fff;">Choose your path:</p>`;
+    outgoingEdges.forEach(edge => {
+      const targetNode = state.nodes.find(n => n.id === edge.to);
+      const label = edge.label || (targetNode ? targetNode.label : 'Continue');
+      navRow.innerHTML += `<button class="player-btn-choice" onclick="playerChooseEdge('${edge.id}')">${label}</button>`;
+    });
+    navRow.innerHTML += `</div>`;
   }
-
-  // Navegación unificada para TODOS los tipos, incluido signpost
-  {
-    const navRow = document.createElement('div');
-    navRow.className = 'player-nav-row';
-    navRow.style.marginTop = '18px';
-
-    const canGoBack = playerState.navigationStack.length > 1;
-    if (canGoBack) {
-      navRow.innerHTML += `<button class="player-btn" onclick="playerBack()">← Back</button>`;
-    }
-
-    const outgoingEdges = state.edges.filter(e => e.from === node.id);
-    if (outgoingEdges.length === 0) {
-      navRow.innerHTML += `<button class="player-btn" onclick="playerFinish()">Finish 🎉</button>`;
-    } else if (outgoingEdges.length === 1) {
-      const label = (node.type === 'signpost' && !canGoBack) ? 'Start →' : 'Continue →';
-      navRow.innerHTML += `<button class="player-btn" onclick="playerNext()">${label}</button>`;
-    } else {
-      navRow.innerHTML = `<div style="width:100%;"><p style="margin-bottom:12px;color:#fff;">Choose your path:</p>`;
-      outgoingEdges.forEach(edge => {
-        const targetNode = state.nodes.find(n => n.id === edge.to);
-        const label = edge.label || (targetNode ? targetNode.label : 'Continue');
-        navRow.innerHTML += `<button class="player-btn-choice" onclick="playerChooseEdge('${edge.id}')">${label}</button>`;
-      });
-      navRow.innerHTML += `</div>`;
-    }
-
-    content.appendChild(navRow);
-  }
+  content.appendChild(navRow);
 }
 
 function playerNext() {
   const node = state.nodes.find(n => n.id === playerState.currentNodeId);
   if (!node) return;
-
   const outgoingEdges = state.edges.filter(e => e.from === node.id);
   if (outgoingEdges.length === 1) {
     const nextNodeId = outgoingEdges[0].to;
@@ -1514,7 +962,6 @@ function playerBack() {
 function playerChooseEdge(edgeId) {
   const edge = state.edges.find(e => e.id === edgeId);
   if (!edge) return;
-
   playerState.navigationStack.push(edge.to);
   playerState.visitedSet.add(edge.to);
   playerState.currentNodeId = edge.to;
@@ -1524,48 +971,22 @@ function playerChooseEdge(edgeId) {
 
 function playerFinish() {
   const content = document.getElementById('playerContent');
-  content.innerHTML = `
-    <div class="player-gesture">🎉</div>
-    <h1 class="player-title">Great job!</h1>
-    <div class="player-signpost">You finished the journey.</div>
-    <div class="player-nav-row">
-      <button class="player-btn" onclick="playerRestart()">Play again</button>
-    </div>
-  `;
+  content.innerHTML = `<div class="player-gesture">🎉</div><h1 class="player-title">Great job!</h1><div class="player-signpost">You finished the journey.</div><div class="player-nav-row"><button class="player-btn" onclick="playerRestart()">Play again</button></div>`;
 }
 
 function playerRestart() {
   const startNodeId = state.meta.startNodeId || playerState.navigationStack[0];
-  playerState = {
-    navigationStack: [startNodeId],
-    visitedSet: new Set([startNodeId]),
-    currentNodeId: startNodeId,
-    activityState: {}
-  };
+  playerState = { navigationStack: [startNodeId], visitedSet: new Set([startNodeId]), currentNodeId: startNodeId, activityState: {} };
   renderPlayerScreen();
 }
 
-// Player activity renderers
 function renderPlayerFlashcards(wrap, node) {
-  if (!node.pairs || node.pairs.length === 0) {
-    wrap.innerHTML = '<p style="color:#fff;">No pairs defined for this activity.</p>';
-    return;
-  }
-
+  if (!node.pairs || node.pairs.length === 0) { wrap.innerHTML = '<p style="color:#fff;">No pairs defined.</p>'; return; }
   if (playerState.activityState.fc === undefined) playerState.activityState.fc = 0;
   const pair = node.pairs[playerState.activityState.fc] || {a:'—', b:'—'};
-
-  wrap.innerHTML = `
-    <div class="player-card-area" id="playerFcCard" onclick="playerFlipCard()">${pair.a}</div>
-    <div class="player-progress-text">${playerState.activityState.fc + 1} / ${node.pairs.length} — tap the card to flip</div>
-    <div class="player-nav-row">
-      <button class="player-btn" onclick="playerFcPrev()" ${playerState.activityState.fc === 0 ? 'disabled' : ''}>‹</button>
-      <button class="player-btn" onclick="playerFcNext()" ${playerState.activityState.fc === node.pairs.length - 1 ? 'disabled' : ''}>›</button>
-    </div>
-  `;
+  wrap.innerHTML = `<div class="player-card-area" id="playerFcCard" onclick="playerFlipCard()">${pair.a}</div><div class="player-progress-text">${playerState.activityState.fc + 1} / ${node.pairs.length} — tap to flip</div><div class="player-nav-row"><button class="player-btn" onclick="playerFcPrev()" ${playerState.activityState.fc === 0 ? 'disabled' : ''}>‹</button><button class="player-btn" onclick="playerFcNext()" ${playerState.activityState.fc === node.pairs.length - 1 ? 'disabled' : ''}>›</button></div>`;
   playerState.activityState.fcFlipped = false;
 }
-
 function playerFlipCard() {
   const node = state.nodes.find(n => n.id === playerState.currentNodeId);
   if (!node || !node.pairs) return;
@@ -1574,217 +995,103 @@ function playerFlipCard() {
   playerState.activityState.fcFlipped = !playerState.activityState.fcFlipped;
   el.textContent = playerState.activityState.fcFlipped ? pair.b : pair.a;
 }
-
 function playerFcNext() {
   const node = state.nodes.find(n => n.id === playerState.currentNodeId);
   if (!node || !node.pairs) return;
-  if (playerState.activityState.fc < node.pairs.length - 1) {
-    playerState.activityState.fc++;
-    renderPlayerScreen();
-  }
+  if (playerState.activityState.fc < node.pairs.length - 1) { playerState.activityState.fc++; renderPlayerScreen(); }
 }
-
 function playerFcPrev() {
-  if (playerState.activityState.fc > 0) {
-    playerState.activityState.fc--;
-    renderPlayerScreen();
-  }
+  if (playerState.activityState.fc > 0) { playerState.activityState.fc--; renderPlayerScreen(); }
 }
 
 function renderPlayerMemory(wrap, node) {
-  if (!node.pairs || node.pairs.length === 0) {
-    wrap.innerHTML = '<p style="color:#fff;">No pairs defined for this activity.</p>';
-    return;
-  }
-
+  if (!node.pairs || node.pairs.length === 0) { wrap.innerHTML = '<p style="color:#fff;">No pairs defined.</p>'; return; }
   if (!playerState.activityState.memCards) {
     const cards = [];
-    node.pairs.forEach((p, idx) => {
-      cards.push({id: idx + 'a', pairIdx: idx, text: p.a});
-      cards.push({id: idx + 'b', pairIdx: idx, text: p.b});
-    });
+    node.pairs.forEach((p, idx) => { cards.push({id: idx + 'a', pairIdx: idx, text: p.a}); cards.push({id: idx + 'b', pairIdx: idx, text: p.b}); });
     playerState.activityState.memCards = shuffle(cards);
     playerState.activityState.memFlipped = [];
     playerState.activityState.memMatched = [];
   }
-
   const grid = document.createElement('div');
   grid.className = 'player-memory-grid';
-
   playerState.activityState.memCards.forEach(c => {
     const flipped = playerState.activityState.memFlipped.indexOf(c.id) !== -1;
     const matched = playerState.activityState.memMatched.indexOf(c.pairIdx) !== -1;
     const div = document.createElement('div');
     div.className = 'player-memory-card' + (matched ? ' matched' : (flipped ? ' flipped' : ''));
     div.textContent = (flipped || matched) ? c.text : '?';
-    if (!matched) {
-      div.onclick = (function(cardId) {
-        return function() { playerMemoryClick(cardId); };
-      })(c.id);
-    }
+    if (!matched) { div.onclick = (function(cardId) { return function() { playerMemoryClick(cardId); }; })(c.id); }
     grid.appendChild(div);
   });
-
   wrap.appendChild(grid);
   wrap.insertAdjacentHTML('beforeend', `<div class="player-progress-text">Matches: ${playerState.activityState.memMatched.length} / ${node.pairs.length}</div>`);
 }
-
 function playerMemoryClick(id) {
   if (playerState.activityState.memFlipped.indexOf(id) !== -1) return;
   if (playerState.activityState.memFlipped.length >= 2) return;
-
   playerState.activityState.memFlipped.push(id);
   renderPlayerScreen();
-
   if (playerState.activityState.memFlipped.length === 2) {
     const c1 = playerState.activityState.memCards.filter(c => c.id === playerState.activityState.memFlipped[0])[0];
     const c2 = playerState.activityState.memCards.filter(c => c.id === playerState.activityState.memFlipped[1])[0];
-
-    if (c1.pairIdx === c2.pairIdx) {
-      playerState.activityState.memMatched.push(c1.pairIdx);
-      playerState.activityState.memFlipped = [];
-      setTimeout(renderPlayerScreen, 500);
-    } else {
-      setTimeout(function() {
-        playerState.activityState.memFlipped = [];
-        renderPlayerScreen();
-      }, 900);
-    }
+    if (c1.pairIdx === c2.pairIdx) { playerState.activityState.memMatched.push(c1.pairIdx); playerState.activityState.memFlipped = []; setTimeout(renderPlayerScreen, 500); }
+    else { setTimeout(function() { playerState.activityState.memFlipped = []; renderPlayerScreen(); }, 900); }
   }
 }
 
 function renderPlayerQuiz(wrap, node) {
-  if (!node.pairs || node.pairs.length === 0) {
-    wrap.innerHTML = '<p style="color:#fff;">No pairs defined for this activity.</p>';
-    return;
-  }
-
-  if (playerState.activityState.quizIdx === undefined) {
-    playerState.activityState.quizIdx = 0;
-    playerState.activityState.quizScore = 0;
-    playerState.activityState.quizAnswered = false;
-  }
-
+  if (!node.pairs || node.pairs.length === 0) { wrap.innerHTML = '<p style="color:#fff;">No pairs defined.</p>'; return; }
+  if (playerState.activityState.quizIdx === undefined) { playerState.activityState.quizIdx = 0; playerState.activityState.quizScore = 0; playerState.activityState.quizAnswered = false; }
   const pairs = node.pairs;
   const current = pairs[playerState.activityState.quizIdx];
   const distractors = shuffle(pairs.filter(p => p !== current)).slice(0, 3).map(p => p.a);
   const options = shuffle([current.a].concat(distractors));
-
   wrap.innerHTML = `<div class="player-card-area" style="margin-bottom:14px;">${current.b}</div>`;
-
   const optWrap = document.createElement('div');
   optWrap.className = 'player-quiz-options';
-
-  options.forEach(opt => {
-    const div = document.createElement('div');
-    div.className = 'player-quiz-opt';
-    div.textContent = opt;
-    div.onclick = function() { playerQuizAnswer(opt, current.a, div, optWrap); };
-    optWrap.appendChild(div);
-  });
-
+  options.forEach(opt => { const div = document.createElement('div'); div.className = 'player-quiz-opt'; div.textContent = opt; div.onclick = function() { playerQuizAnswer(opt, current.a, div, optWrap); }; optWrap.appendChild(div); });
   wrap.appendChild(optWrap);
   wrap.insertAdjacentHTML('beforeend', `<div class="player-progress-text">Question ${playerState.activityState.quizIdx + 1} / ${pairs.length} — Score: ${playerState.activityState.quizScore}</div>`);
 }
-
 function playerQuizAnswer(chosen, correct, el, optWrap) {
   if (playerState.activityState.quizAnswered) return;
   playerState.activityState.quizAnswered = true;
-
-  Array.prototype.forEach.call(optWrap.children, function(c) {
-    if (c.textContent === correct) c.classList.add('correct');
-    else if (c === el) c.classList.add('wrong');
-  });
-
+  Array.prototype.forEach.call(optWrap.children, function(c) { if (c.textContent === correct) c.classList.add('correct'); else if (c === el) c.classList.add('wrong'); });
   if (chosen === correct) playerState.activityState.quizScore++;
-
   setTimeout(function() {
     const node = state.nodes.find(n => n.id === playerState.currentNodeId);
     if (!node || !node.pairs) return;
     playerState.activityState.quizAnswered = false;
-    if (playerState.activityState.quizIdx < node.pairs.length - 1) {
-      playerState.activityState.quizIdx++;
-    }
+    if (playerState.activityState.quizIdx < node.pairs.length - 1) { playerState.activityState.quizIdx++; }
     renderPlayerScreen();
   }, 900);
 }
 
 function renderPlayerResponse(wrap, node) {
   const swatches = ['#ffffff', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#111111'];
-  wrap.innerHTML = `
-    <canvas id="playerDrawPad" width="300" height="200"></canvas>
-    <div class="player-palette">${swatches.map(c => `<div class="player-swatch" style="background:${c}" onclick="playerSetColor('${c}')"></div>`).join('')}</div>
-    <button class="player-btn" onclick="playerClearPad()" style="margin-bottom:10px;">Clear</button>
-    ${node.prompt ? `<textarea class="player-response-text" placeholder="${node.prompt.replace(/"/g, '&quot;')}"></textarea>` : ''}
-  `;
+  wrap.innerHTML = `<canvas id="playerDrawPad" width="300" height="200"></canvas><div class="player-palette">${swatches.map(c => `<div class="player-swatch" style="background:${c}" onclick="playerSetColor('${c}')"></div>`).join('')}</div><button class="player-btn" onclick="playerClearPad()" style="margin-bottom:10px;">Clear</button>${node.prompt ? `<textarea class="player-response-text" placeholder="${node.prompt.replace(/"/g, '&quot;')}"></textarea>` : ''}`;
   setTimeout(playerInitPad, 30);
 }
-
 let playerDrawing = false, playerPenColor = '#111111';
-
-function playerSetColor(c) {
-  playerPenColor = c;
-}
-
+function playerSetColor(c) { playerPenColor = c; }
 function playerInitPad() {
   const c = document.getElementById('playerDrawPad');
   if (!c) return;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, c.width, c.height);
-
-  function pos(e) {
-    const r = c.getBoundingClientRect();
-    const t = e.touches ? e.touches[0] : e;
-    return { x: t.clientX - r.left, y: t.clientY - r.top };
-  }
-
+  function pos(e) { const r = c.getBoundingClientRect(); const t = e.touches ? e.touches[0] : e; return { x: t.clientX - r.left, y: t.clientY - r.top }; }
   function start(e) { playerDrawing = true; playerDraw(e); }
   function end() { playerDrawing = false; ctx.beginPath(); }
-  function draw(e) {
-    if (!playerDrawing) return;
-    e.preventDefault();
-    const p = pos(e);
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = playerPenColor;
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-  }
-
-  c.addEventListener('mousedown', start);
-  c.addEventListener('mouseup', end);
-  c.addEventListener('mousemove', draw);
-  c.addEventListener('touchstart', start);
-  c.addEventListener('touchend', end);
-  c.addEventListener('touchmove', draw);
+  function draw(e) { if (!playerDrawing) return; e.preventDefault(); const p = pos(e); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = playerPenColor; ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+  c.addEventListener('mousedown', start); c.addEventListener('mouseup', end); c.addEventListener('mousemove', draw);
+  c.addEventListener('touchstart', start); c.addEventListener('touchend', end); c.addEventListener('touchmove', draw);
 }
+function playerClearPad() { const c = document.getElementById('playerDrawPad'); const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); }
+function renderPlayerReflect(wrap, node) { wrap.innerHTML = `<textarea class="player-response-text" placeholder="Type your answer..."></textarea>`; }
+function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 
-function playerClearPad() {
-  const c = document.getElementById('playerDrawPad');
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, c.width, c.height);
-}
-
-function renderPlayerReflect(wrap, node) {
-  wrap.innerHTML = `<textarea class="player-response-text" placeholder="Type your answer..."></textarea>`;
-}
-
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const t = a[i];
-    a[i] = a[j];
-    a[j] = t;
-  }
-  return a;
-}
-
-// Start
 init();
 </script>
 </body>
