@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recorrido Editor (Checkpoint 7 - Zoom)</title>
+<title>Recorrido</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Recorrido">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -236,7 +244,7 @@ textarea.player-response-text { width: 100%; max-width: 480px; min-height: 80px;
         <button class="btn" onclick="closeAoAModal()">✕</button>
       </div>
       <div class="modal-body">
-        <p>Pega aquí el JSON generado por <strong>"Lesson Planner → Deck.Toys"</strong> (modo "Recorrido AoA"). Se crearán 6 nodos conectados en línea con las fases READY → LEARN → PRACTICE → PERFORM → SHOW → THINK.</p>
+        <p>Pega aquí el JSON generado por <strong>"AoA Pathway"</strong> (modo "Recorrido AoA"). Se crearán 6 nodos conectados en línea con las fases READY → LEARN → PRACTICE → PERFORM → SHOW → THINK.</p>
         <div class="form-group">
           <label>Grado</label>
           <select id="aoaGrade">
@@ -252,6 +260,11 @@ textarea.player-response-text { width: 100%; max-width: 480px; min-height: 80px;
         <div class="form-group">
           <label>Scenario (clave corta ej. "5" o nombre completo)</label>
           <input type="text" id="aoaScenario" placeholder="Ej: 5 o Animals on the farm">
+        </div>
+        <div class="form-group">
+          <label>Archivo .json (opcional)</label>
+          <button class="btn btn-secondary" style="width:100%;padding:10px;" onclick="document.getElementById('aoaFileInput').click()">📎 Subir archivo .json</button>
+          <input type="file" id="aoaFileInput" accept=".json,application/json" style="display:none" onchange="loadAoaJsonFile(this)">
         </div>
         <div class="form-group">
           <label>JSON de las 6 fases</label>
@@ -702,6 +715,27 @@ function importJSON(input) {
 
 function openAoAModal() { document.getElementById('aoaGrade').value = 'K'; document.getElementById('aoaScenario').value = ''; document.getElementById('aoaJson').value = ''; document.getElementById('aoaModal').classList.add('open'); }
 function closeAoAModal() { document.getElementById('aoaModal').classList.remove('open'); }
+
+function loadAoaJsonFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      // Validar que sea JSON parseable antes de volcarlo al textarea,
+      // para no meterle basura si el archivo estaba corrupto.
+      JSON.parse(e.target.result);
+      document.getElementById('aoaJson').value = e.target.result;
+      showToast('Archivo cargado — revisa Grado/Scenario y toca Importar');
+    }catch(err){
+      alert('El archivo no contiene JSON válido: ' + err.message);
+    }
+  };
+  reader.onerror = function(){ alert('No se pudo leer el archivo'); };
+  reader.readAsText(file);
+  input.value = '';
+}
+
 function applyAoAImport() {
   const grade = document.getElementById('aoaGrade').value;
   const scenarioInput = document.getElementById('aoaScenario').value.trim();
