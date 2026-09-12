@@ -83,6 +83,12 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; height: 100vh; 
 .modal-footer .btn { flex: 1; padding: 12px; font-size: 0.95rem; }
 
 .bg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.small { font-size: 0.78rem; color: #94a3b8; }
+.library-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.library-item-info { display: flex; flex-direction: column; gap: 2px; }
+.library-item-info strong { font-size: 0.95rem; }
+.library-item-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.library-item-actions .btn { padding: 8px 12px; font-size: 0.82rem; }
 .bg-slot { border: 2px solid #e2e8f0; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; background: #f8fafc; }
 .bg-slot.has-image { border-color: #94a3b8; }
 .bg-slot.active { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3); }
@@ -154,6 +160,7 @@ textarea.player-response-text { width: 100%; max-width: 480px; min-height: 80px;
       <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importJSON(this)">
       <button class="btn btn-success" onclick="openAoAModal()">📥 Importar de AoA</button>
       <button class="btn" onclick="openBackgroundsModal()">🖼️ Fondos</button>
+      <button class="btn" onclick="openLibraryModal()">📚 Biblioteca</button>
       <button class="btn btn-primary" onclick="startPlayer()">▶ Jugar</button>
     </div>
 4  </div>
@@ -293,6 +300,20 @@ textarea.player-response-text { width: 100%; max-width: 480px; min-height: 80px;
         <button class="btn btn-secondary" style="width:100%;padding:12px;" onclick="document.getElementById('bgFileInput').click()">＋ Agregar fondo nuevo</button>
         <input type="file" id="bgFileInput" accept="image/*" style="display:none" onchange="addBackground(this)">
         <button class="btn" style="width:100%;padding:10px;margin-top:8px;" onclick="clearBackground()">Quitar fondo actual</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="libraryModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>📚 Biblioteca de Recorridos</h3>
+        <button class="btn" onclick="closeLibraryModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <button class="btn btn-secondary" style="width:100%;padding:12px;margin-bottom:12px;" onclick="saveCurrentToLibrary()">💾 Guardar el mapa actual en la biblioteca</button>
+        <p class="small" style="margin:0 0 10px;color:#666;">Tocar "▶ Jugar" en un mapa guardado te lleva directo al modo estudiante, sin pasar por el editor — así no arriesgas tocar algo por accidente antes de una clase.</p>
+        <div id="libraryList"></div>
       </div>
     </div>
   </div>
@@ -955,6 +976,107 @@ function getBackgroundLabel(bgId) { const bg = backgrounds.find(b => b.id === bg
 
 function openBackgroundsModal() { renderBackgroundsGrid(); document.getElementById('backgroundsModal').classList.add('open'); }
 function closeBackgroundsModal() { document.getElementById('backgroundsModal').classList.remove('open'); }
+
+// --- BIBLIOTECA DE RECORRIDOS ---
+function loadLibrary() {
+  try { return JSON.parse(localStorage.getItem('recorrido_library') || '[]'); }
+  catch(e) { return []; }
+}
+function saveLibrary(lib) {
+  try { localStorage.setItem('recorrido_library', JSON.stringify(lib)); return true; }
+  catch(e) { showToast('Error: localStorage lleno, no se pudo guardar en la biblioteca.'); return false; }
+}
+
+function openLibraryModal() { renderLibraryList(); document.getElementById('libraryModal').classList.add('open'); }
+function closeLibraryModal() { document.getElementById('libraryModal').classList.remove('open'); }
+
+function saveCurrentToLibrary() {
+  if (state.nodes.length === 0) { showToast('No hay nada que guardar — el mapa está vacío'); return; }
+  const suggested = state.meta.sourceLabel || ('Mapa ' + new Date().toLocaleDateString('es-PA'));
+  const name = prompt('Nombre para este mapa en la biblioteca:', suggested);
+  if (!name) return;
+  const lib = loadLibrary();
+  const entry = {
+    id: 'lib_' + Date.now(),
+    name: name,
+    savedAt: new Date().toISOString(),
+    nodeCount: state.nodes.length,
+    data: { meta: state.meta, nodes: state.nodes, edges: state.edges }
+  };
+  lib.push(entry);
+  if (saveLibrary(lib)) { showToast('Guardado en la biblioteca'); renderLibraryList(); }
+}
+
+function renderLibraryList() {
+  const lib = loadLibrary();
+  const container = document.getElementById('libraryList');
+  if (lib.length === 0) { container.innerHTML = '<p class="empty-note">Todavía no has guardado ningún mapa aquí.</p>'; return; }
+  container.innerHTML = lib.slice().reverse().map(entry => {
+    const d = new Date(entry.savedAt);
+    const dateStr = d.toLocaleDateString('es-PA', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `<div class="library-item">
+      <div class="library-item-info">
+        <strong>${entry.name}</strong>
+        <span class="small">${entry.nodeCount} nodos · guardado ${dateStr}</span>
+      </div>
+      <div class="library-item-actions">
+        <button class="btn btn-primary" onclick="playFromLibrary('${entry.id}')">▶ Jugar</button>
+        <button class="btn" onclick="editFromLibrary('${entry.id}')">✏️ Editar</button>
+        <button class="btn" onclick="deleteFromLibrary('${entry.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function findLibraryEntry(id) {
+  const lib = loadLibrary();
+  return lib.find(e => e.id === id);
+}
+
+let playingFromLibrary = false;
+let preLibraryState = null;
+
+function playFromLibrary(id) {
+  const entry = findLibraryEntry(id);
+  if (!entry) { showToast('No se encontró ese mapa'); return; }
+  // Respalda el borrador actual del editor para no perderlo -- jugar desde
+  // la biblioteca es de solo lectura, no debe tocar lo que estabas armando.
+  preLibraryState = { meta: state.meta, nodes: state.nodes, edges: state.edges };
+  playingFromLibrary = true;
+  state.meta = JSON.parse(JSON.stringify(entry.data.meta));
+  state.nodes = JSON.parse(JSON.stringify(entry.data.nodes));
+  state.edges = JSON.parse(JSON.stringify(entry.data.edges));
+  state.selectedNodeId = null; state.mode = 'default'; state.connectingFrom = null;
+  applyBackground();
+  closeLibraryModal();
+  startPlayer();
+}
+
+function editFromLibrary(id) {
+  const entry = findLibraryEntry(id);
+  if (!entry) { showToast('No se encontró ese mapa'); return; }
+  if (state.nodes.length > 0) {
+    if (!confirm('Vas a reemplazar el mapa actual del editor con este de la biblioteca. Si no lo has guardado/exportado, perderás lo que tengas sin guardar. ¿Continuar?')) return;
+  }
+  pushHistory();
+  state.meta = JSON.parse(JSON.stringify(entry.data.meta));
+  state.nodes = JSON.parse(JSON.stringify(entry.data.nodes));
+  state.edges = JSON.parse(JSON.stringify(entry.data.edges));
+  state.selectedNodeId = null; state.mode = 'default'; state.connectingFrom = null;
+  saveState();
+  applyBackground();
+  render();
+  closeLibraryModal();
+  showToast('Mapa cargado en el editor');
+}
+
+function deleteFromLibrary(id) {
+  const entry = findLibraryEntry(id);
+  if (!entry) return;
+  if (!confirm('¿Borrar "' + entry.name + '" de la biblioteca? Esto no se puede deshacer.')) return;
+  const lib = loadLibrary().filter(e => e.id !== id);
+  if (saveLibrary(lib)) { renderLibraryList(); showToast('Borrado de la biblioteca'); }
+}
 function renderBackgroundsGrid() {
   const grid = document.getElementById('bgGrid');
   grid.innerHTML = '';
@@ -1083,6 +1205,18 @@ function exitPlayer() {
   document.getElementById('playerMode').classList.remove('active');
   document.getElementById('editorMode').style.display = 'flex';
   playerState = { navigationStack: [], visitedSet: new Set(), currentNodeId: null, activityState: {}, lastRenderedNodeId: null, lastSpokenText: null };
+  if (playingFromLibrary && preLibraryState) {
+    // Se jugó un mapa de la biblioteca sin tocar el editor -- restaurar
+    // el borrador que estaba antes de entrar a jugar.
+    state.meta = preLibraryState.meta;
+    state.nodes = preLibraryState.nodes;
+    state.edges = preLibraryState.edges;
+    state.selectedNodeId = null; state.mode = 'default'; state.connectingFrom = null;
+    playingFromLibrary = false;
+    preLibraryState = null;
+    applyBackground();
+    render();
+  }
 }
 
 function renderPlayerScreen() {
